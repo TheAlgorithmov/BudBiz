@@ -1,0 +1,2538 @@
+<!DOCTYPE html>
+<html lang="en" class="dark" x-data="loanApp()" x-init="init()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bud For Biz</title>
+    <link rel="icon" href="dp.png" type="image/png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- ADDED: Flag Icons CSS for the currency dropdown -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flag-icons@7.0.2/css/flag-icons.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .nav-link {
+            transition: all 0.2s ease-in-out;
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: box-shadow 0.3s ease-in-out, background-color 0.3s ease-in-out, border-color 0.3s ease-in-out;
+        }
+        .card:hover {
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .dark .card {
+            border: 1px solid #374151; /* gray-700 */
+            box-shadow: none;
+        }
+         .dark .card:hover {
+            background-color: #1f2937; /* gray-800 hover */
+        }
+        .btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .table-row:hover {
+            background-color: #f9fafb;
+        }
+        .dark .table-row:hover {
+            background-color: #374151; /* gray-700 */
+        }
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* Align modal to the top */
+            z-index: 50;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            overflow-y: auto; /* Enable scrolling for the whole backdrop */
+            padding: 5vh 1rem; /* Add vertical padding */
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            width: 90%;
+            flex-shrink: 0;
+        }
+        [x-cloak] { display: none !important; }
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        /* Custom Dark Scrollbar */
+        .dark-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .dark-scrollbar::-webkit-scrollbar-track {
+            background: #1f2937; /* gray-800 */
+            border-radius: 10px;
+        }
+        .dark-scrollbar::-webkit-scrollbar-thumb {
+            background: #4b5563; /* gray-600 */
+            border-radius: 10px;
+        }
+        .dark-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #6b7280; /* gray-500 */
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+
+    <div x-show="!isLoggedIn" x-cloak class="flex items-center justify-center min-h-screen text-gray-200 p-4">
+        <div class="w-full max-w-md p-8 space-y-6 bg-gray-800 rounded-xl shadow-lg">
+            <div class="flex flex-col items-center space-y-4">
+                <div class="h-24 w-24 flex items-center justify-center rounded-full bg-white p-2">
+                    <img src="dp.png" alt="Logo" class="h-full w-full rounded-full">
+                </div>
+                <h1 class="text-3xl font-bold text-center">Bud For Biz</h1>
+                <p class="text-sm text-gray-400 text-center">Your Personal Lending Manager</p>
+            </div>
+
+            <div class="flex border-b border-gray-700">
+                <button @click="authScreen = 'login'; authError = ''" :class="{ 'border-blue-500 text-white': authScreen === 'login', 'border-transparent text-gray-400 hover:text-white': authScreen !== 'login' }" class="w-1/2 py-3 text-center font-medium border-b-2 transition-colors">Login</button>
+                <button @click="authScreen = 'register'; authError = ''" :class="{ 'border-blue-500 text-white': authScreen === 'register', 'border-transparent text-gray-400 hover:text-white': authScreen !== 'register' }" class="w-1/2 py-3 text-center font-medium border-b-2 transition-colors">Register</button>
+            </div>
+
+            <div x-show="authError" class="bg-red-500/20 border border-red-500 text-red-300 text-sm rounded-lg p-3 text-center" x-text="authError"></div>
+
+            <form x-show="authScreen === 'login'" @submit.prevent="login()" class="space-y-4">
+                <div>
+                    <label for="data-file" class="block text-sm font-medium text-gray-400">Data File</label>
+                    <input id="data-file" type="file" @change="handleFileUpload($event)" accept=".bfb" class="mt-1 block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:text-white" :class="{ 'file:bg-red-500 hover:file:bg-red-600': !dataFile, 'file:bg-gray-700 hover:file:bg-gray-800': dataFile }" required>
+                </div>
+                <div>
+                    <label for="login-username" class="block text-sm font-medium text-gray-400">Username</label>
+                    <input id="login-username" type="text" x-model="loginCredentials.username" placeholder="Enter your username" class="mt-1 p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400" required>
+                </div>
+                <div>
+                    <label for="login-pin" class="block text-sm font-medium text-gray-400">6-Digit PIN</label>
+                    <input id="login-pin" type="password" x-model="loginCredentials.pin" placeholder="••••••" maxlength="6" class="mt-1 p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400" required>
+                </div>
+                <div class="flex items-center">
+                    <input id="remember-me" x-model="rememberMe" type="checkbox" class="h-4 w-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500">
+                    <label for="remember-me" class="ml-2 block text-sm text-gray-400">Remember me</label>
+                </div>
+                <button type="submit" class="w-full btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg">Unlock & Load Data</button>
+            </form>
+
+            <form x-show="authScreen === 'register'" @submit.prevent="register()" class="space-y-4">
+                 <div>
+                    <label for="reg-username" class="block text-sm font-medium text-gray-400">Username</label>
+                    <input id="reg-username" type="text" x-model="registerCredentials.username" placeholder="Choose a username" class="mt-1 p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400" required>
+                </div>
+                <div>
+                    <label for="reg-pin" class="block text-sm font-medium text-gray-400">Create 6-Digit PIN</label>
+                    <input id="reg-pin" type="password" x-model="registerCredentials.pin" placeholder="Enter 6 digits" maxlength="6" class="mt-1 p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400" required>
+                </div>
+                 <div>
+                    <label for="reg-pin-confirm" class="block text-sm font-medium text-gray-400">Confirm 6-Digit PIN</label>
+                    <input id="reg-pin-confirm" type="password" x-model="registerCredentials.confirmPin" placeholder="Confirm your PIN" maxlength="6" class="mt-1 p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400" required>
+                </div>
+                <button type="submit" class="w-full btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg">Create Account & Download File</button>
+                <p class="text-xs text-gray-500 text-center">After registering, you will be prompted to save your encrypted data file. Keep this file safe as it's required to log in.</p>
+            </form>
+        </div>
+    </div>
+    
+    <div x-show="isLoggedIn" x-cloak class="flex-1 flex flex-col overflow-hidden">
+        <main class="flex-1 p-4 sm:p-6 overflow-y-auto">
+            <header class="bg-gray-800 p-4 rounded-xl shadow-lg mb-6 flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="h-10 w-10 flex items-center justify-center rounded-full bg-white p-1 shrink-0">
+                        <img src="dp.png" alt="Logo" class="h-full w-full rounded-full">
+                    </div>
+                    <nav class="flex items-center space-x-1 sm:space-x-2">
+                        <a href="#" @click.prevent="activeTab = 'dashboard'" class="nav-link flex items-center px-3 py-2 rounded-lg text-sm font-medium" :class="{ 'bg-gray-700 text-white': activeTab === 'dashboard', 'text-gray-400 hover:bg-gray-700 hover:text-white': activeTab !== 'dashboard' }">
+                            <i class="fas fa-tachometer-alt fa-fw mr-2"></i>
+                            <span class="hidden sm:inline">Dashboard</span>
+                        </a>
+                        <a href="#" @click.prevent="activeTab = 'management'" class="nav-link flex items-center px-3 py-2 rounded-lg text-sm font-medium" :class="{ 'bg-gray-700 text-white': activeTab === 'management', 'text-gray-400 hover:bg-gray-700 hover:text-white': activeTab !== 'management' }">
+                            <i class="fas fa-briefcase fa-fw mr-2"></i>
+                            <span class="hidden sm:inline">Management</span>
+                        </a>
+                    </nav>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-4 bg-gray-900/50 border border-gray-700 p-2 rounded-lg">
+                        <div x-text="currentTime" class="text-sm text-gray-400 hidden md:block pr-4 border-r border-gray-600"></div>
+                        <div class="flex items-center gap-2">
+                            <!-- UPDATED: Currency Dropdown -->
+                            <div class="relative">
+                                <button @click="isCurrencyDropdownOpen = !isCurrencyDropdownOpen" @click.away="isCurrencyDropdownOpen = false" class="flex items-center gap-2 p-1 border-0 rounded-md bg-transparent text-gray-200 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                    <span class="fi rounded-sm" :class="'fi-' + getSelectedCurrency().country"></span>
+                                    <span x-text="currency"></span>
+                                    <i class="fas fa-chevron-down text-xs transition-transform" :class="{'rotate-180': isCurrencyDropdownOpen}"></i>
+                                </button>
+                                <div x-show="isCurrencyDropdownOpen" x-cloak
+                                     x-transition:enter="transition ease-out duration-100"
+                                     x-transition:enter-start="transform opacity-0 scale-95"
+                                     x-transition:enter-end="transform opacity-100 scale-100"
+                                     x-transition:leave="transition ease-in duration-75"
+                                     x-transition:leave-start="transform opacity-100 scale-100"
+                                     x-transition:leave-end="transform opacity-0 scale-95"
+                                     class="absolute right-0 mt-2 w-32 origin-top-right bg-gray-700 border border-gray-600 rounded-md shadow-lg z-20">
+                                    <div class="py-1 max-h-60 overflow-y-auto dark-scrollbar">
+                                        <template x-for="c in currencies" :key="c.code">
+                                            <a href="#" @click.prevent="currency = c.code; isCurrencyDropdownOpen = false; queueSave()"
+                                               class="flex items-center gap-3 px-4 py-2 text-sm text-gray-300 hover:bg-gray-600">
+                                                <span class="fi rounded-sm" :class="'fi-' + c.country"></span>
+                                                <span x-text="c.code"></span>
+                                            </a>
+                                        </template>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-2 pl-4 border-l border-gray-600" title="Sync Status">
+                            <div x-show="syncStatus === 'syncing'" x-cloak class="flex items-center gap-1 text-sm text-blue-400">
+                                <i class="fas fa-sync fa-spin"></i>
+                                <span class="hidden lg:inline">Syncing...</span>
+                            </div>
+                            <div x-show="syncStatus === 'file_synced'" x-cloak class="flex items-center gap-1 text-sm text-green-400">
+                                <i class="fas fa-check-circle"></i>
+                                <span class="hidden lg:inline">Synced via File</span>
+                            </div>
+                             <div x-show="syncStatus === 'local_synced'" x-cloak class="flex items-center gap-1 text-sm text-cyan-400">
+                                <i class="fas fa-save"></i>
+                                <span class="hidden lg:inline">Synced Locally</span>
+                            </div>
+                            <div x-show="syncStatus === 'dirty'" x-cloak class="flex items-center gap-1 text-sm text-yellow-400">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <span class="hidden lg:inline">Unsaved</span>
+                            </div>
+                        </div>
+                        <button @click="manualSync()" class="btn bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg text-sm" title="Manual Sync">
+                            <i class="fas fa-sync"></i>
+                        </button>
+                    </div>
+                    <button @click="logout()" class="btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg text-sm">
+                        <i class="fas fa-sign-out-alt mr-2"></i>Logout
+                    </button>
+                </div>
+            </header>
+            
+            <div x-show="activeTab === 'dashboard'" x-cloak>
+                <div class="card p-4 bg-gray-800 mb-6">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                        <div class="p-3 rounded-lg bg-gray-700/50 flex items-center">
+                            <div class="p-3 bg-blue-900/50 text-blue-400 rounded-full mr-3">
+                                <i class="fas fa-users fa-fw text-lg"></i>
+                            </div>
+                            <div>
+                                <p class="text-gray-400 text-xs">Total Clients</p>
+                                <p class="text-xl font-bold text-gray-200" x-text="clients.length"></p>
+                            </div>
+                        </div>
+                        <div class="p-3 rounded-lg bg-gray-700/50 flex items-center">
+                            <div class="p-3 bg-green-900/50 text-green-400 rounded-full mr-3">
+                                <i class="fas fa-file-invoice-dollar fa-fw text-lg"></i>
+                            </div>
+                            <div>
+                                <p class="text-gray-400 text-xs">Active Loans</p>
+                                <p class="text-xl font-bold text-gray-200" x-text="loans.filter(l => calculateBalance(l) > 0).length"></p>
+                            </div>
+                        </div>
+                        <div class="p-3 rounded-lg bg-gray-700/50 flex items-center">
+                            <div class="p-3 bg-yellow-900/50 text-yellow-400 rounded-full mr-3">
+                                <i class="fas fa-wallet fa-fw text-lg"></i>
+                            </div>
+                            <div>
+                                <p class="text-gray-400 text-xs">Capital Invested</p>
+                                <p class="text-xl font-bold text-gray-200" x-text="formatCurrency(totalCapitalInvested)"></p>
+                            </div>
+                        </div>
+                        <div class="p-3 rounded-lg bg-gray-700/50 flex items-center">
+                            <div class="p-3 bg-purple-900/50 text-purple-400 rounded-full mr-3">
+                                <i class="fas fa-piggy-bank fa-fw text-lg"></i>
+                            </div>
+                            <div>
+                                <p class="text-gray-400 text-xs">Interest Earned</p>
+                                <p class="text-xl font-bold text-gray-200" x-text="formatCurrency(interestIncomeEarned)"></p>
+                            </div>
+                        </div>
+                        <div class="p-3 rounded-lg bg-gray-700/50 flex items-center">
+                            <div class="p-3 bg-teal-900/50 text-teal-400 rounded-full mr-3">
+                               <i class="fas fa-chart-line fa-fw text-lg"></i>
+                            </div>
+                            <div>
+                                <p class="text-gray-400 text-xs">ROI</p>
+                                <p class="text-xl font-bold text-gray-200" x-text="roi + '%'"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
+                    <div class="card p-0 bg-gray-800 flex flex-col overflow-hidden">
+                        <div class="p-4 border-b border-gray-700">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-md font-semibold text-red-400">Overdue</h3>
+                                <div class="flex items-center gap-3">
+                                    <span class="px-2 py-1 text-xs font-bold text-red-800 bg-red-300 rounded-full" x-text="duesOverdue.count"></span>
+                                    <i @click="openListModal('overdue')" class="fas fa-expand text-gray-400 hover:text-white cursor-pointer transition-colors"></i>
+                                </div>
+                            </div>
+                            <p class="text-2xl font-bold text-gray-200 mt-1" x-text="formatCurrency(duesOverdue.amount)"></p>
+                        </div>
+                        <div class="p-2 space-y-2 overflow-y-auto h-72 dark-scrollbar">
+                            <template x-if="duesOverdue.items.length === 0">
+                                <p class="text-center text-gray-500 py-4 text-sm">No overdue payments.</p>
+                            </template>
+                            <template x-for="due in duesOverdue.items.slice(0, 6)" :key="due.loanId + due.dueDate">
+                                <div @click="openLoanDetailsModal(due.loanId)" class="flex justify-between items-center p-2 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700">
+                                    <div>
+                                        <p class="font-semibold text-gray-200 text-sm" x-text="due.clientName"></p>
+                                        <p class="text-xs text-gray-400" x-text="`Due: ${new Date(due.dueDate).toLocaleDateString()}`"></p>
+                                    </div>
+                                    <p class="font-bold text-red-400 text-sm" x-text="formatCurrency(due.amountDue)"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    <div class="card p-0 bg-gray-800 flex flex-col overflow-hidden">
+                        <div class="p-4 border-b border-gray-700">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-md font-semibold text-yellow-400">Due Today</h3>
+                                <div class="flex items-center gap-3">
+                                    <span class="px-2 py-1 text-xs font-bold text-yellow-800 bg-yellow-300 rounded-full" x-text="duesToday.count"></span>
+                                    <i @click="openListModal('today')" class="fas fa-expand text-gray-400 hover:text-white cursor-pointer transition-colors"></i>
+                                </div>
+                            </div>
+                            <p class="text-2xl font-bold text-gray-200 mt-1" x-text="formatCurrency(duesToday.amount)"></p>
+                        </div>
+                        <div class="p-2 space-y-2 overflow-y-auto h-72 dark-scrollbar">
+                            <template x-if="duesToday.items.length === 0">
+                                <p class="text-center text-gray-500 py-4 text-sm">No payments due today.</p>
+                            </template>
+                            <template x-for="due in duesToday.items.slice(0, 6)" :key="due.loanId + due.dueDate">
+                                <div @click="openLoanDetailsModal(due.loanId)" class="flex justify-between items-center p-2 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700">
+                                    <div>
+                                        <p class="font-semibold text-gray-200 text-sm" x-text="due.clientName"></p>
+                                        <p class="text-xs text-gray-400" x-text="`Due: ${new Date(due.dueDate).toLocaleDateString()}`"></p>
+                                    </div>
+                                    <p class="font-bold text-yellow-400 text-sm" x-text="formatCurrency(due.amountDue)"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <div class="card p-0 bg-gray-800 flex flex-col overflow-hidden">
+                        <div class="p-4 border-b border-gray-700">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-md font-semibold text-blue-400">Due This Week</h3>
+                                <div class="flex items-center gap-3">
+                                    <span class="px-2 py-1 text-xs font-bold text-blue-800 bg-blue-300 rounded-full" x-text="duesThisWeek.count"></span>
+                                    <i @click="openListModal('week')" class="fas fa-expand text-gray-400 hover:text-white cursor-pointer transition-colors"></i>
+                                </div>
+                            </div>
+                            <p class="text-2xl font-bold text-gray-200 mt-1" x-text="formatCurrency(duesThisWeek.amount)"></p>
+                        </div>
+                        <div class="p-2 space-y-2 overflow-y-auto h-72 dark-scrollbar">
+                            <template x-if="duesThisWeek.items.length === 0">
+                                <p class="text-center text-gray-500 py-4 text-sm">No payments due this week.</p>
+                            </template>
+                            <template x-for="due in duesThisWeek.items.slice(0, 6)" :key="due.loanId + due.dueDate">
+                                <div @click="openLoanDetailsModal(due.loanId)" class="flex justify-between items-center p-2 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700">
+                                    <div>
+                                        <p class="font-semibold text-gray-200 text-sm" x-text="due.clientName"></p>
+                                        <p class="text-xs text-gray-400" x-text="`Due: ${new Date(due.dueDate).toLocaleDateString()}`"></p>
+                                    </div>
+                                    <p class="font-bold text-blue-400 text-sm" x-text="formatCurrency(due.amountDue)"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <div class="card p-0 bg-gray-800 flex flex-col overflow-hidden">
+                        <div class="p-4 border-b border-gray-700">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-md font-semibold text-indigo-400">Due This Month</h3>
+                                <div class="flex items-center gap-3">
+                                    <span class="px-2 py-1 text-xs font-bold text-indigo-800 bg-indigo-300 rounded-full" x-text="duesThisMonth.count"></span>
+                                    <i @click="openListModal('month')" class="fas fa-expand text-gray-400 hover:text-white cursor-pointer transition-colors"></i>
+                                </div>
+                            </div>
+                            <p class="text-2xl font-bold text-gray-200 mt-1" x-text="formatCurrency(duesThisMonth.amount)"></p>
+                        </div>
+                        <div class="p-2 space-y-2 overflow-y-auto h-72 dark-scrollbar">
+                            <template x-if="duesThisMonth.items.length === 0">
+                                <p class="text-center text-gray-500 py-4 text-sm">No payments due this month.</p>
+                            </template>
+                            <template x-for="due in duesThisMonth.items.slice(0, 6)" :key="due.loanId + due.dueDate">
+                                <div @click="openLoanDetailsModal(due.loanId)" class="flex justify-between items-center p-2 bg-gray-700/50 rounded-lg cursor-pointer hover:bg-gray-700">
+                                    <div>
+                                        <p class="font-semibold text-gray-200 text-sm" x-text="due.clientName"></p>
+                                        <p class="text-xs text-gray-400" x-text="`Due: ${new Date(due.dueDate).toLocaleDateString()}`"></p>
+                                    </div>
+                                    <p class="font-bold text-indigo-400 text-sm" x-text="formatCurrency(due.amountDue)"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-4 bg-gray-800">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4 text-gray-300">
+                        <div>
+                            <h3 class="font-semibold text-lg mb-2 text-cyan-400">Borrower Behavior</h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between items-center border-b border-gray-700 pb-1">
+                                    <span class="text-gray-400">Repeat Borrower Rate</span>
+                                    <strong class="text-lg" x-text="`${portfolioInsights.repeatBorrowerRate}%`"></strong>
+                                </div>
+                                <div class="flex justify-between items-center border-b border-gray-700 pb-1">
+                                    <span class="text-gray-400">Average Loan Size</span>
+                                    <strong class="text-lg" x-text="formatCurrency(portfolioInsights.averageLoanSize)"></strong>
+                                </div>
+                                <div class="flex justify-between items-center border-b border-gray-700 pb-1">
+                                    <span class="text-gray-400">Borrower Concentration (Top 3)</span>
+                                    <strong class="text-lg" x-text="`${portfolioInsights.borrowerConcentration}%`"></strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-lg mb-2 text-lime-400">Portfolio Performance</h3>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between items-center border-b border-gray-700 pb-1">
+                                    <span class="text-gray-400">Loan Turnover Ratio</span>
+                                    <strong class="text-lg" x-text="portfolioInsights.loanTurnoverRatio"></strong>
+                                </div>
+                                <div class="flex justify-between items-center border-b border-gray-700 pb-1">
+                                    <span class="text-gray-400">Average Loan Duration</span>
+                                    <strong class="text-lg" x-text="`${portfolioInsights.averageLoanDuration} days`"></strong>
+                                </div>
+                                <div class="flex justify-between items-center border-b border-gray-700 pb-1">
+                                    <span class="text-gray-400">Portfolio at Risk (>30d)</span>
+                                    <strong class="text-lg text-red-400" x-text="`${portfolioInsights.portfolioAtRisk}%`"></strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div x-show="activeTab === 'management'" x-cloak>
+                <div class="card bg-gray-800 p-4 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <button @click="showAddClientModal = true" class="p-4 rounded-lg bg-gray-700/50 flex items-center justify-between w-full text-left hover:bg-gray-700 transition-colors h-full">
+                            <div class="flex items-center">
+                                <div class="p-3 bg-gray-900/50 text-blue-400 rounded-full mr-4">
+                                    <i class="fas fa-user-plus fa-fw text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-200">Add Client</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400 self-center"></i>
+                        </button>
+                        <button @click="openLoanModalForCreate()" class="p-4 rounded-lg bg-gray-700/50 flex items-center justify-between w-full text-left hover:bg-gray-700 transition-colors h-full">
+                            <div class="flex items-center">
+                                <div class="p-3 bg-gray-900/50 text-green-400 rounded-full mr-4">
+                                    <i class="fas fa-file-invoice-dollar fa-fw text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-200">Create Loan</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400 self-center"></i>
+                        </button>
+                        <button @click="openCreditScoreModal()" class="p-4 rounded-lg bg-gray-700/50 flex items-center justify-between w-full text-left hover:bg-gray-700 transition-colors h-full">
+                            <div class="flex items-center">
+                                <div class="p-3 bg-gray-900/50 text-indigo-400 rounded-full mr-4">
+                                    <i class="fas fa-star-half-alt fa-fw text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-200">Credit Score</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400 self-center"></i>
+                        </button>
+                        <button @click="masterExport()" class="p-4 rounded-lg bg-gray-700/50 flex items-center justify-between w-full text-left hover:bg-gray-700 transition-colors h-full">
+                            <div class="flex items-center">
+                                <div class="p-3 bg-gray-900/50 text-purple-400 rounded-full mr-4">
+                                    <i class="fas fa-file-export fa-fw text-lg"></i>
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-200">Export Data</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-gray-400 self-center"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex flex-col lg:flex-row lg:space-x-6 space-y-6 lg:space-y-0">
+                    <div class="card p-6 bg-gray-800 lg:w-1/3 flex-shrink-0">
+                        <div class="flex flex-col md:flex-row justify-between md:items-center mb-4 gap-4">
+                            <h2 class="text-2xl font-bold text-gray-300">Clients</h2>
+                            <div class="flex items-center space-x-2 w-full md:w-auto">
+                                <div class="relative flex-grow">
+                                    <input type="text" x-model="clientSearchQuery" placeholder="Search clients..." class="p-2 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200 placeholder-gray-400">
+                                </div>
+                                <button @click="toggleClientSort()" class="btn bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded-lg shrink-0">
+                                    <i class="fas" :class="clientSortDirection === 'asc' ? 'fa-sort-alpha-down' : 'fa-sort-alpha-up'"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-[repeat(auto-fill,minmax(6rem,1fr))] gap-4 pb-4 overflow-y-auto max-h-96 dark-scrollbar">
+                            <button @click="clearClientFilter()" class="flex-shrink-0 flex flex-col items-center space-y-1 text-sm text-gray-400 hover:text-blue-400" :class="{ 'font-bold text-blue-400': selectedClientIdFilter === null }">
+                                <div class="w-20 h-20 rounded-full bg-gray-700 flex items-center justify-center border-2" :class="selectedClientIdFilter === null ? 'border-blue-500' : 'border-transparent'">
+                                    <i class="fas fa-users text-3xl text-gray-400"></i>
+                                </div>
+                                <span class="w-24 text-center">All Clients</span>
+                            </button>
+                            <template x-for="client in filteredClients" :key="client.id">
+                                <div @click="filterLoansByClient(client.id)" class="relative flex-shrink-0 flex flex-col items-center space-y-1 text-center cursor-pointer group">
+                                    <img :src="client.photoUrl || 'https://placehold.co/80x80/E2E8F0/4A5568?text=??'" class="w-20 h-20 rounded-full object-cover border-2 transition" :class="selectedClientIdFilter === client.id ? 'border-blue-500' : 'border-transparent group-hover:border-gray-300'">
+                                    <span class="text-sm w-24 text-center break-words text-gray-300" x-text="`${client.firstName} ${client.lastName}`"></span>
+                                    <button @click.stop="openClientDetailsModal(client.id)" class="absolute top-0 right-0 bg-gray-600 rounded-full p-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <i class="fas fa-pencil-alt text-gray-300"></i>
+                                    </button>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <div class="card p-6 bg-gray-800 lg:w-2/3">
+                        <div class="flex flex-col md:flex-row justify-between md:items-center mb-4 gap-4">
+                            <h2 class="text-2xl font-bold text-gray-300">Loans</h2>
+                            <div class="flex flex-col md:flex-row items-center space-y-2 md:space-y-0 md:space-x-2 w-full md:w-auto">
+                                <div class="relative flex-grow">
+                                    <input type="text" x-model="loanSearchQuery" placeholder="Search loans by client name..." class="p-2 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200 placeholder-gray-400">
+                                </div>
+                                <button @click="loanSortKey = loanSortKey === 'due_asc' ? 'due_desc' : 'due_asc'" class="btn bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded-lg shrink-0">
+                                    <i class="fas" :class="loanSortKey === 'due_asc' ? 'fa-sort-amount-down' : 'fa-sort-amount-up'"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead>
+                                    <tr class="border-b bg-gray-700/50 text-sm border-gray-700">
+                                        <th class="p-3 text-gray-400">Client</th>
+                                        <th class="p-3 text-gray-400">Balance</th>
+                                        <th class="p-3 text-gray-400">Final Due Date</th>
+                                        <th class="p-3 text-right text-gray-400">View</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-gray-300">
+                                    <template x-if="filteredAndSortedLoans.length === 0">
+                                        <tr>
+                                            <td colspan="4" class="p-4 text-center text-gray-400">No loans found for the current filter.</td>
+                                        </tr>
+                                    </template>
+                                    <template x-for="loan in filteredAndSortedLoans" :key="loan.id">
+                                        <tr @click="openLoanDetailsModal(loan.id)" class="table-row border-b cursor-pointer border-gray-700" :class="getLoanRowClass(loan)">
+                                            <td class="p-3">
+                                                <div class="flex items-center">
+                                                    <img :src="getClientById(loan.clientId)?.photoUrl || 'https://placehold.co/40x40/E2E8F0/4A5568?text=??'" class="w-10 h-10 rounded-full object-cover mr-4">
+                                                    <span x-text="getClientName(loan.clientId)"></span>
+                                                </div>
+                                            </td>
+                                            <td class="p-3 font-bold" x-text="formatCurrency(calculateBalance(loan))"></td>
+                                            <td class="p-3" x-text="new Date(loan.finalDueDate).toLocaleDateString()"></td>
+                                            <td class="p-3 text-right">
+                                                <i class="fas fa-eye text-gray-400"></i>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div x-show="showAddClientModal" class="modal-backdrop" x-cloak>
+        <div class="modal-content max-w-xl bg-gray-800" @click.away="showAddClientModal = false">
+            <h2 class="text-2xl font-bold mb-4 text-gray-200">Add New Client</h2>
+            <form @submit.prevent="addClient()">
+                <div class="space-y-4">
+                    <div class="flex flex-col items-center space-y-2">
+                        <label for="clientPhoto" class="cursor-pointer">
+                            <img :src="newClient.photoUrl || 'https://placehold.co/100x100/E2E8F0/4A5568?text=Photo'" 
+                                 class="w-24 h-24 rounded-full object-cover border-2 border-gray-600" 
+                                 alt="Client Photo">
+                        </label>
+                        <input type="file" id="clientPhoto" @change="handlePhotoUpload" accept="image/*" class="hidden">
+                        <p class="text-sm text-gray-400">Click photo to upload</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <input type="text" x-model="newClient.firstName" placeholder="First Name" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200 placeholder-gray-400" required>
+                        <input type="text" x-model="newClient.lastName" placeholder="Last Name" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200 placeholder-gray-400" required>
+                    </div>
+                    <input type="email" x-model="newClient.email" placeholder="Client Email" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200 placeholder-gray-400">
+                    <input type="tel" x-model="newClient.phone" placeholder="Client Phone" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200 placeholder-gray-400">
+                    <textarea x-model="newClient.address" placeholder="Address" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200 placeholder-gray-400" rows="3"></textarea>
+                </div>
+                <div class="flex justify-end space-x-4 mt-6">
+                    <button type="button" @click="showAddClientModal = false" class="btn bg-gray-600 hover:bg-gray-500 text-gray-200 font-bold py-2 px-6 rounded-lg">Cancel</button>
+                    <button type="submit" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">Add Client</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div x-show="loanModal.show" class="modal-backdrop" x-cloak>
+        <div class="modal-content max-w-2xl lg:max-w-6xl bg-gray-800" @click.away="loanModal.show = false">
+            <h2 class="text-2xl font-bold text-gray-200 mb-6" x-text="loanModal.mode === 'create' ? 'Create New Loan' : 'Edit Loan'"></h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <form id="loan-form" @input.debounce.300ms="updateLoanModalSummary()">
+                        <div class="space-y-6">
+
+                            <div class="p-4 border rounded-lg border-gray-700">
+                                <h3 class="text-lg font-semibold text-gray-300 mb-4 border-b border-gray-700 pb-2">Client & Principal</h3>
+                                <div class="space-y-4 pt-2">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-400 mb-1">Client</label>
+                                        <div class="flex items-center gap-4">
+                                            <img :src="loanModal.data.clientId ? (getClientById(loanModal.data.clientId)?.photoUrl || 'https://placehold.co/96x96/E2E8F0/4A5568?text=??') : 'https://placehold.co/96x96/E2E8F0/4A5568?text=Client'" 
+                                                 alt="Client Photo" 
+                                                 class="w-24 h-24 rounded-full object-cover border-2 border-gray-600">
+                                            <select id="loanClient" x-model="loanModal.data.clientId" class="p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200" required>
+                                                <option value="">Select Client</option>
+                                                <template x-for="client in clients" :key="client.id">
+                                                    <option :value="client.id" x-text="`${client.firstName} ${client.lastName}`"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="loanAmount" class="block text-sm font-medium text-gray-400 mb-1">Principal Amount</label>
+                                            <input id="loanAmount" type="number" x-model.number="loanModal.data.amount" placeholder="Principal Amount" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200 placeholder-gray-400" required min="1" step="0.01">
+                                        </div>
+                                        <div>
+                                            <label for="disbursementDate" class="block text-sm font-medium text-gray-400 mb-1">Disbursement Date</label>
+                                            <input id="disbursementDate" type="date" x-model="loanModal.data.disbursementDate" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-4 border rounded-lg border-gray-700">
+                                <h3 class="text-lg font-semibold text-gray-300 mb-4 border-b border-gray-700 pb-2">Term & Repayment</h3>
+                                <div class="space-y-4 pt-2">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="loanDuration" class="block text-sm font-medium text-gray-400 mb-1">Loan Duration</label>
+                                            <div class="flex">
+                                                <input id="loanDuration" type="number" x-model.number="loanModal.data.durationValue" placeholder="Duration" class="p-3 border rounded-l-lg w-2/3 bg-transparent border-gray-600 text-gray-200 placeholder-gray-400" required min="1">
+                                                <select x-model="loanModal.data.durationUnit" class="p-3 border-t border-b border-r rounded-r-lg w-1/3 bg-gray-700 border-gray-600 text-gray-200">
+                                                    <option value="Days">Days</option>
+                                                    <option value="Months">Months</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label for="repaymentStartDate" class="block text-sm font-medium text-gray-400 mb-1">Repayment Start Date</label>
+                                            <input id="repaymentStartDate" type="date" x-model="loanModal.data.repaymentStartDate" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200" required>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label for="repaymentPlan" class="block text-sm font-medium text-gray-400 mb-1">Repayment Plan</label>
+                                        <select id="repaymentPlan" x-model="loanModal.data.repaymentPlan" class="p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200">
+                                            <option>Daily</option>
+                                            <option>Weekly</option>
+                                            <option>Monthly</option>
+                                            <option>Yearly</option>
+                                            <option>Custom</option>
+                                        </select>
+                                    </div>
+                                    <div x-show="loanModal.data.repaymentPlan === 'Custom'" class="grid grid-cols-2 gap-4" x-cloak>
+                                        <div>
+                                            <label for="customRepaymentValue" class="block text-sm font-medium text-gray-400 mb-1">Every</label>
+                                            <input id="customRepaymentValue" type="number" x-model.number="loanModal.data.customRepaymentValue" placeholder="e.g., 3" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200" min="1">
+                                        </div>
+                                        <div>
+                                            <label for="customRepaymentUnit" class="block text-sm font-medium text-gray-400 mb-1">Unit</label>
+                                            <select id="customRepaymentUnit" x-model="loanModal.data.customRepaymentUnit" class="p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200">
+                                                <option>Days</option>
+                                                <option>Months</option>
+                                                <option>Years</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="p-4 border rounded-lg border-gray-700">
+                                <h3 class="text-lg font-semibold text-gray-300 mb-4 border-b border-gray-700 pb-2">Interest Details</h3>
+                                <div class="space-y-4 pt-2 text-gray-300">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <label for="interestType" class="block text-sm font-medium mb-1">Interest Type</label>
+                                            <select id="interestType" x-model="loanModal.data.interestType" class="p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200" required>
+                                                <option value="">Select Interest Type</option>
+                                                <option value="Add-On Rate">Add-On Rate</option>
+                                                <option value="Factor Rate">Factor Rate</option>
+                                                <option value="Effective Rate">Effective Rate</option>
+                                                <option value="Daily Fixed Interest">Daily Fixed Interest</option>
+                                                <option value="Weekly Fixed Interest">Weekly Fixed Interest</option>
+                                                <option value="Monthly Fixed Interest">Monthly Fixed Interest</option>
+                                                <option value="Total Fixed Interest">Total Fixed Interest</option>
+                                                <option value="Custom Fixed Interest">Custom Fixed Interest</option>
+                                            </select>
+                                        </div>
+
+                                        <div x-show="loanModal.data.interestType && loanModal.data.interestType !== 'Custom Fixed Interest'">
+                                            <label class="block text-sm font-medium mb-1" x-text="getInterestValueLabel()"></label>
+                                            <input type="number" x-show="['Add-On Rate', 'Effective Rate'].includes(loanModal.data.interestType)" x-model.number="loanModal.data.interestValue" :placeholder="getInterestValueLabel()" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200" min="0" step="0.01">
+                                            <input type="number" x-show="loanModal.data.interestType === 'Factor Rate'" x-model.number="loanModal.data.interestValue" :placeholder="getInterestValueLabel()" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200" min="0" step="0.00001">
+                                            <input type="number" x-show="['Daily Fixed Interest', 'Weekly Fixed Interest', 'Monthly Fixed Interest', 'Total Fixed Interest'].includes(loanModal.data.interestType)" x-model.number="loanModal.data.interestValue" :placeholder="getInterestValueLabel()" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200" min="0" step="0.01">
+                                        </div>
+                                    </div>
+                                    <div x-show="loanModal.data.interestType === 'Custom Fixed Interest'" class="space-y-4" x-cloak>
+                                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                            <div>
+                                                <label for="customFixedAmount" class="block text-sm font-medium mb-1">Fixed Amount</label>
+                                                <input id="customFixedAmount" type="number" x-model.number="loanModal.data.interestValue" placeholder="Fixed Amount" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200" min="0" step="0.01">
+                                            </div>
+                                            <div>
+                                                <label for="customPeriodValue" class="block text-sm font-medium mb-1">Period</label>
+                                                <input id="customPeriodValue" type="number" x-model.number="loanModal.data.customPeriodValue" placeholder="Every" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200" min="1">
+                                            </div>
+                                            <div>
+                                                <label for="customPeriodUnit" class="block text-sm font-medium mb-1">Unit</label>
+                                                <select id="customPeriodUnit" x-model="loanModal.data.customPeriodUnit" class="p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200">
+                                                    <option value="Days">Days</option>
+                                                    <option value="Weeks">Weeks</option>
+                                                    <option value="Months">Months</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-start space-x-3">
+                                            <input type="checkbox" id="ignoreIncomplete" x-model="loanModal.data.ignoreIncompletePeriod" class="mt-1 h-4 w-4 rounded bg-gray-900 border-gray-600 text-blue-600 focus:ring-blue-500">
+                                            <label for="ignoreIncomplete">Ignore incomplete period</label>
+                                        </div>
+                                        <div class="flex items-start space-x-3">
+                                            <input type="checkbox" id="applyLimits" x-model="loanModal.data.applyLimits" class="mt-1 h-4 w-4 rounded bg-gray-900 border-gray-600 text-blue-600 focus:ring-blue-500">
+                                            <label for="applyLimits">Apply optional limits</label>
+                                        </div>
+                                        <div x-show="loanModal.data.applyLimits" class="grid grid-cols-1 md:grid-cols-2 gap-4" x-cloak>
+                                            <div>
+                                                <label for="maxCharges" class="block text-sm font-medium mb-1">Max Charges/Month</label>
+                                                <input id="maxCharges" type="number" x-model.number="loanModal.data.maxChargesPerMonth" placeholder="Max charges per month" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200" min="1">
+                                            </div>
+                                            <div>
+                                                <label for="maxInterest" class="block text-sm font-medium mb-1">Max Interest/Month</label>
+                                                <input id="maxInterest" type="number" x-model.number="loanModal.data.maxInterestPerMonth" placeholder="Max interest per month" class="p-3 border rounded-lg w-full bg-transparent border-gray-600 text-gray-200" min="0" step="0.01">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-200 mb-4">Loan Summary</h3>
+                        <div class="space-y-3 p-4 border rounded-lg bg-gray-700/50 border-gray-700">
+                            <div class="flex justify-between text-gray-200"><span class="text-gray-400">Client:</span> <strong x-text="loanModal.summary.clientName"></strong></div>
+                            <div class="flex justify-between text-gray-200"><span class="text-gray-400">Principal:</span> <strong x-text="loanModal.summary.principal"></strong></div>
+                            <div class="flex justify-between text-gray-200"><span class="text-gray-400">Loan Term:</span> <strong x-text="loanModal.summary.term"></strong></div>
+                            <div class="flex justify-between text-gray-200"><span class="text-gray-400">Final Due Date:</span> <strong x-text="loanModal.summary.finalDueDate"></strong></div>
+                            <div class="flex justify-between text-gray-200"><span class="text-gray-400">Repayment Starts:</span> <strong x-text="loanModal.summary.repaymentStartDate"></strong></div>
+                            <div class="flex justify-between text-gray-200"><span class="text-gray-400">Repayment Plan:</span> <strong x-text="loanModal.summary.repaymentPlan"></strong></div>
+                            <hr class="border-gray-600">
+                            <div class="flex justify-between text-gray-200"><span class="text-gray-400">Interest Type:</span> <strong x-text="loanModal.summary.interestType"></strong></div>
+                            <div class="flex justify-between text-gray-200"><span class="text-gray-400">Total Interest:</span> <strong x-text="loanModal.summary.interest"></strong></div>
+                            <hr class="my-2 border-t-2 border-dashed border-gray-600">
+                            <div class="flex justify-between text-xl text-gray-200"><span class="font-semibold">Total Due:</span> <strong class="text-green-500" x-text="loanModal.summary.totalDue"></strong></div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-200 mb-4">Payment Schedule</h3>
+                        <div class="border rounded-lg border-gray-700 max-h-48 overflow-y-auto dark-scrollbar">
+                            <table class="w-full text-left text-sm">
+                                <thead class="bg-gray-900 sticky top-0">
+                                    <tr>
+                                        <th class="p-2 text-gray-400">Due Date</th>
+                                        <th class="p-2 text-gray-400 text-right">Amount Due</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="text-gray-300">
+                                    <template x-if="loanModal.schedulePreview.length === 0">
+                                        <tr><td colspan="2" class="p-4 text-center text-gray-500">Fill form to see schedule</td></tr>
+                                    </template>
+                                    <template x-for="(installment, index) in loanModal.schedulePreview" :key="index">
+                                        <tr class="border-t border-gray-700">
+                                            <td class="p-2" x-text="new Date(installment.dueDate).toLocaleDateString()"></td>
+                                            <td class="p-2 text-right" x-text="formatCurrency(installment.amountDue)"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-4 mt-8">
+                <button type="button" @click="loanModal.show = false" class="btn bg-gray-600 hover:bg-gray-500 text-gray-200 font-bold py-2 px-6 rounded-lg">Cancel</button>
+                <button type="button" @click="saveLoan()" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg" :disabled="!isLoanFormValid()" :class="{'opacity-50 cursor-not-allowed': !isLoanFormValid()}" x-text="loanModal.mode === 'create' ? 'Create Loan' : 'Save Changes'"></button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showClientDetailsModal" class="modal-backdrop" x-cloak>
+        <div class="modal-content max-w-2xl bg-gray-800" @click.away="showClientDetailsModal = false">
+            <div x-show="selectedClient">
+                <div class="flex justify-between items-start">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-200">Client Profile</h2>
+                    <button @click="showClientDetailsModal = false" class="text-gray-400 hover:text-gray-200 text-2xl leading-none">&times;</button>
+                </div>
+    
+                <div class="flex flex-col items-center text-center p-6 bg-gray-700/50 rounded-lg mb-6">
+                    <div class="relative">
+                        <img :src="selectedClient.photoUrl || 'https://placehold.co/100x100/718096/E2E8F0?text=Client'" 
+                             alt="Client Photo" 
+                             class="w-24 h-24 rounded-full object-cover border-4 border-gray-600 mb-2">
+                        <button type="button" @click="document.getElementById('editClientPhoto-' + selectedClient.id).click()" x-show="isEditingClient" class="absolute bottom-0 right-0 bg-blue-500 hover:bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center">
+                            <i class="fas fa-camera"></i>
+                        </button>
+                    </div>
+                    <input type="file" :id="'editClientPhoto-' + selectedClient.id" @change="handleEditPhotoUpload" accept="image/*" class="hidden" x-show="isEditingClient">
+                    
+                    <div x-show="!isEditingClient" class="mt-2">
+                        <p class="text-xl font-bold text-gray-200" x-text="`${selectedClient.firstName} ${selectedClient.lastName}`"></p>
+                    </div>
+                    <div x-show="isEditingClient" class="grid grid-cols-2 gap-4 w-full max-w-sm mx-auto mt-4">
+                        <input type="text" x-model="selectedClient.firstName" class="p-2 border rounded-lg w-full bg-gray-900 border-gray-600 text-center" placeholder="First Name">
+                        <input type="text" x-model="selectedClient.lastName" class="p-2 border rounded-lg w-full bg-gray-900 border-gray-600 text-center" placeholder="Last Name">
+                    </div>
+                </div>
+    
+                <div class="space-y-6 text-gray-200">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-400 border-b border-gray-700 pb-2">Contact Information</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-4">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500">Email Address</label>
+                                <p x-show="!isEditingClient" class="p-3 bg-gray-700 rounded-lg min-h-[44px] break-words flex items-center" x-text="selectedClient.email || '-'"></p>
+                                <input x-show="isEditingClient" type="email" x-model="selectedClient.email" class="p-2 border rounded-lg w-full bg-transparent border-gray-600">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500">Phone Number</label>
+                                <p x-show="!isEditingClient" class="p-3 bg-gray-700 rounded-lg min-h-[44px] flex items-center" x-text="selectedClient.phone || '-'"></p>
+                                <input x-show="isEditingClient" type="tel" x-model="selectedClient.phone" class="p-2 border rounded-lg w-full bg-transparent border-gray-600">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                         <h3 class="text-lg font-semibold text-gray-400 border-b border-gray-700 pb-2">Address</h3>
+                         <div class="text-sm mt-4">
+                            <p x-show="!isEditingClient" class="p-3 bg-gray-700 rounded-lg whitespace-pre-wrap min-h-[7rem]" x-text="selectedClient.address || '-'"></p>
+                            <textarea x-show="isEditingClient" x-model="selectedClient.address" class="p-2 border rounded-lg w-full bg-transparent border-gray-600" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between items-center mt-8">
+                    <button type="button" @click="confirmDeleteClient(selectedClient.id)" class="btn text-red-500 hover:text-red-700 font-bold py-2 px-4 rounded-lg">Delete Client</button>
+    
+                    <div class="flex space-x-4">
+                        <div x-show="!isEditingClient">
+                            <button type="button" @click="isEditingClient = true" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">Edit</button>
+                        </div>
+                        <div x-show="isEditingClient" class="flex space-x-4">
+                            <button type="button" @click="cancelClientEdit()" class="btn bg-gray-600 hover:bg-gray-500 text-gray-200 font-bold py-2 px-6 rounded-lg">Cancel</button>
+                            <button type="button" @click="updateClient()" class="btn bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-lg">Save</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showLoanDetailsModal" class="modal-backdrop" x-cloak>
+        <div class="modal-content max-w-4xl bg-gray-800" @click.away="showLoanDetailsModal = false">
+            <div x-show="selectedLoan">
+                <div class="flex justify-between items-start mb-4">
+                    <h2 class="text-2xl font-bold text-gray-200">Loan Details</h2>
+                    <button @click="showLoanDetailsModal = false" class="text-gray-400 hover:text-gray-200 text-2xl leading-none">&times;</button>
+                </div>
+    
+                <div class="flex items-center space-x-4 mb-6 pb-6 border-b border-gray-700">
+                    <img :src="getClientById(selectedLoan.clientId)?.photoUrl || 'https://placehold.co/80x80/718096/E2E8F0?text=Client'" 
+                         alt="Client Photo" 
+                         class="w-20 h-20 rounded-full object-cover border-2 border-gray-600">
+                    <div>
+                        <p class="text-sm text-gray-400">Client</p>
+                        <p class="text-xl font-bold text-gray-200" x-text="selectedLoan.clientName"></p>
+                    </div>
+                </div>
+    
+                <div class="space-y-6 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="p-4 rounded-lg bg-gray-700/50">
+                            <p class="text-sm text-gray-400">Principal Amount</p>
+                            <p class="text-2xl font-semibold text-gray-200" x-text="formatCurrency(selectedLoan.amount)"></p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-gray-700/50">
+                            <p class="text-sm text-gray-400">Total Interest</p>
+                            <p class="text-2xl font-semibold text-gray-200" x-text="formatCurrency(selectedLoan.totalInterest)"></p>
+                        </div>
+                        <div class="p-4 rounded-lg bg-gray-700/50">
+                            <p class="text-sm text-gray-400">Total Due</p>
+                            <p class="text-2xl font-bold text-green-400" x-text="formatCurrency(calculateTotalDue(selectedLoan))"></p>
+                        </div>
+                    </div>
+    
+                    <div class="card bg-gray-800 p-6">
+                        <h4 class="font-semibold text-lg text-gray-300 mb-4">Terms & Schedule</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                            <div class="flex justify-between border-b border-gray-700 py-2"><span class="text-gray-400">Loan Term:</span> <strong class="text-gray-200" x-text="`${selectedLoan.durationValue} ${selectedLoan.durationUnit}`"></strong></div>
+                            <div class="flex justify-between border-b border-gray-700 py-2"><span class="text-gray-400">Repayment Plan:</span> <strong class="text-gray-200" x-text="getRepaymentPlanText(selectedLoan)"></strong></div>
+                            <div class="flex justify-between border-b border-gray-700 py-2"><span class="text-gray-400">Disbursement Date:</span> <strong class="text-gray-200" x-text="new Date(selectedLoan.disbursementDate).toLocaleDateString()"></strong></div>
+                            <div class="flex justify-between border-b border-gray-700 py-2"><span class="text-gray-400">Repayment Starts:</span> <strong class="text-gray-200" x-text="new Date(selectedLoan.repaymentStartDate).toLocaleDateString()"></strong></div>
+                            <div class="flex justify-between border-b border-gray-700 py-2"><span class="text-gray-400">Final Due Date:</span> <strong class="text-gray-200" x-text="new Date(selectedLoan.finalDueDate).toLocaleDateString()"></strong></div>
+                            <div class="flex justify-between border-b border-gray-700 py-2"><span class="text-gray-400">Interest Type:</span> <strong class="text-gray-200" x-text="selectedLoan.interestType"></strong></div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                         <div class="p-4 rounded-lg bg-blue-900/50">
+                             <p class="text-gray-400">Total Paid</p>
+                             <p class="text-2xl font-bold text-blue-400" x-text="formatCurrency(selectedLoan.amountPaid)"></p>
+                         </div>
+                         <div class="p-4 rounded-lg bg-red-900/50">
+                             <p class="text-gray-400">Outstanding Balance</p>
+                             <p class="text-2xl font-bold text-red-400" x-text="formatCurrency(selectedLoan.balance)"></p>
+                         </div>
+                    </div>
+                </div>
+    
+                <h3 class="text-lg font-semibold text-gray-300 mb-2">Payment Schedule</h3>
+                <div class="border rounded-lg max-h-60 overflow-y-auto mb-6 border-gray-700 dark-scrollbar">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-900 sticky top-0">
+                            <tr>
+                                <th class="p-2 text-gray-400">Due Date</th>
+                                <th class="p-2 text-gray-400">Amount Due</th>
+                                <th class="p-2 text-gray-400 text-center">Status</th>
+                                <th class="p-2 text-gray-400 text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-gray-300">
+                            <template x-if="selectedLoan.paymentSchedule && selectedLoan.paymentSchedule.length > 0">
+                                <template x-for="(installment, index) in selectedLoan.paymentSchedule" :key="installment.id">
+                                    <tr class="border-t border-gray-700">
+                                        <td class="p-2" x-text="new Date(installment.dueDate).toLocaleDateString()"></td>
+                                        <td class="p-2" x-text="formatCurrency(installment.amountDue)"></td>
+                                        <td class="p-2 text-center">
+                                            <span class="px-2 py-1 text-xs font-semibold rounded-full"
+                                                  :class="{
+                                                      'bg-green-500/20 text-green-400': getInstallmentStatus(installment) === 'Paid',
+                                                      'bg-red-500/20 text-red-400': getInstallmentStatus(installment) === 'Overdue',
+                                                      'bg-yellow-500/20 text-yellow-400': getInstallmentStatus(installment) === 'Pending',
+                                                  }"
+                                                  x-text="getInstallmentStatus(installment)">
+                                            </span>
+                                        </td>
+                                        <td class="p-2 text-center">
+                                            <button x-show="installment.status !== 'paid'" @click="markInstallmentAsPaid(selectedLoan.id, index)" class="btn text-xs bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600 disabled:opacity-50" :disabled="calculateBalance(selectedLoan) <= 0">
+                                                Mark Paid
+                                            </button>
+                                            <button x-show="installment.status === 'paid'" @click="markInstallmentAsUnpaid(selectedLoan.id, index)" class="btn text-xs bg-gray-500 text-white px-2 py-1 rounded hover:bg-gray-600">
+                                                Un-pay
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex justify-between items-center mt-8">
+                    <button type="button" @click="confirmDeleteLoan(selectedLoan.id)" class="btn text-red-500 hover:text-red-700 font-bold py-2 px-4 rounded-lg">Delete Loan</button>
+                    <button type="button" @click="openLoanModalForEdit(selectedLoan.id)" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">Edit Loan Details</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showListModal" class="modal-backdrop" x-cloak>
+        <div class="modal-content max-w-6xl bg-gray-800" @click.away="showListModal = false">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-200" x-text="listModal.title"></h2>
+                <button @click="showListModal = false" class="text-gray-400 hover:text-gray-200 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="flex justify-end mb-4">
+                <button @click="exportListToCSV()" class="btn bg-teal-500 hover:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg">
+                    <i class="fas fa-file-excel mr-2"></i>Export to CSV/Excel
+                </button>
+            </div>
+            <div class="border rounded-lg max-h-96 overflow-y-auto border-gray-700 dark-scrollbar">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-900 sticky top-0">
+                        <tr>
+                            <th class="p-3 text-gray-400">Client Name</th>
+                            <th class="p-3 text-gray-400 text-right">Total Loan</th>
+                            <th class="p-3 text-gray-400 text-right">Total Paid</th>
+                            <th class="p-3 text-gray-400 text-right">Balance</th>
+                            <th class="p-3 text-gray-400 text-right">Installment Due</th>
+                            <th class="p-3 text-gray-400">Installment Due Date</th>
+                            <th class="p-3 text-gray-400 text-center">Days Overdue</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-gray-300">
+                        <template x-if="listModal.items.length === 0">
+                            <tr><td colspan="7" class="p-4 text-center text-gray-500">No items to display.</td></tr>
+                        </template>
+                        <template x-for="item in listModal.items" :key="item.loanId + item.dueDate">
+                            <tr @click="openLoanDetailsModal(item.loanId); showListModal = false" class="border-t border-gray-700 cursor-pointer hover:bg-gray-700">
+                                <td class="p-3 font-semibold" x-text="item.clientName"></td>
+                                <td class="p-3 text-right" x-text="formatCurrency(item.totalLoanAmount)"></td>
+                                <td class="p-3 text-right text-blue-400" x-text="formatCurrency(item.totalPaid)"></td>
+                                <td class="p-3 font-bold text-right text-red-400" x-text="formatCurrency(item.remainingBalance)"></td>
+                                <td class="p-3 text-right font-bold text-red-400" x-text="formatCurrency(item.amountDue)"></td>
+                                <td class="p-3" x-text="new Date(item.dueDate).toLocaleDateString()"></td>
+                                <td class="p-3 text-center font-bold" :class="{'text-red-400': item.daysOverdue > 0}" x-text="item.daysOverdue > 0 ? item.daysOverdue : '-'"></td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showCreditScoreModal" class="modal-backdrop" x-cloak>
+        <div class="modal-content max-w-5xl bg-gray-800" @click.away="showCreditScoreModal = false">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-200">Client Credit Scores</h2>
+                <button @click="showCreditScoreModal = false" class="text-gray-400 hover:text-gray-200 text-2xl leading-none">&times;</button>
+            </div>
+             <div class="relative mb-4">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                    <i class="fas fa-search text-gray-400"></i>
+                </span>
+                <input type="text" x-model="creditScoreSearchQuery" placeholder="Search by client name..." class="w-full p-2 pl-10 border rounded-lg bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="border rounded-lg max-h-[70vh] overflow-y-auto border-gray-700 dark-scrollbar">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-900 sticky top-0 z-10">
+                        <tr>
+                            <th class="p-3 text-gray-400 w-1/3">Client</th>
+                            <th class="p-3 text-gray-400 text-center">Score</th>
+                            <th class="p-3 text-gray-400 text-center">Rating</th>
+                            <th class="p-3 text-gray-400">Summary</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-gray-300">
+                        <template x-if="filteredCreditScores.length === 0">
+                            <tr><td colspan="4" class="p-4 text-center text-gray-500">No clients match your search.</td></tr>
+                        </template>
+                        <template x-for="clientScore in filteredCreditScores" :key="clientScore.clientId">
+                            <tbody class="contents">
+                                <tr @click="selectedCreditScoreClient = (selectedCreditScoreClient && selectedCreditScoreClient.clientId === clientScore.clientId) ? null : clientScore" class="border-t border-gray-700 cursor-pointer hover:bg-gray-700/50">
+                                    <td class="p-3 font-semibold">
+                                        <div class="flex items-center">
+                                            <img :src="clientScore.photoUrl || 'https://placehold.co/40x40/E2E8F0/4A5568?text=??'" class="w-10 h-10 rounded-full object-cover mr-4 shrink-0">
+                                            <span x-text="clientScore.clientName"></span>
+                                        </div>
+                                    </td>
+                                    <td class="p-3 text-center">
+                                        <span class="text-lg font-bold" x-text="clientScore.score.toFixed(0)"
+                                              :class="{
+                                                  'text-green-400': clientScore.score >= 80,
+                                                  'text-lime-400': clientScore.score >= 70 && clientScore.score < 80,
+                                                  'text-yellow-400': clientScore.score >= 60 && clientScore.score < 70,
+                                                  'text-orange-400': clientScore.score >= 50 && clientScore.score < 60,
+                                                  'text-red-400': clientScore.score < 50,
+                                              }"></span>
+                                    </td>
+                                    <td class="p-3 text-center">
+                                         <span class="px-2 py-1 text-xs font-semibold rounded-full"
+                                              :class="{
+                                                  'bg-green-500/20 text-green-400': clientScore.rating === 'Excellent',
+                                                  'bg-lime-500/20 text-lime-400': clientScore.rating === 'Good',
+                                                  'bg-yellow-500/20 text-yellow-400': clientScore.rating === 'Fair',
+                                                  'bg-orange-500/20 text-orange-400': clientScore.rating === 'Poor',
+                                                  'bg-red-500/20 text-red-400': clientScore.rating === 'Risky',
+                                              }" x-text="clientScore.rating"></span>
+                                    </td>
+                                    <td class="p-3" x-text="clientScore.remarks"></td>
+                                </tr>
+                                <tr x-show="selectedCreditScoreClient && selectedCreditScoreClient.clientId === clientScore.clientId" x-cloak>
+                                    <td colspan="4" class="p-4 bg-gray-900/70">
+                                        <h4 class="font-semibold text-gray-200 mb-2">Score Breakdown</h4>
+                                        <div class="space-y-2 text-xs">
+                                            <template x-for="(value, key) in clientScore.breakdown">
+                                                <div class="flex justify-between items-center border-b border-gray-700 pb-1">
+                                                    <div class="flex items-center">
+                                                        <i class="fas fa-info-circle text-gray-500 mr-2"></i>
+                                                        <span class="text-gray-400" x-text="key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())"></span>
+                                                    </div>
+                                                    <div class="flex items-center">
+                                                        <span class="text-gray-300 mr-4 italic" x-text="value.text"></span>
+                                                        <span class="font-bold text-base w-12 text-right" x-text="`${value.value > 0 ? '+' : ''}${value.value.toFixed(1)}`"
+                                                              :class="{ 'text-green-400': value.value > 0, 'text-red-400': value.value < 0, 'text-gray-400': value.value == 0 }"></span>
+                                                    </div>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showConfirmModal" class="modal-backdrop" x-cloak>
+        <div class="modal-content max-w-md bg-gray-800" @click.away="showConfirmModal = false">
+            <h2 class="text-2xl font-bold mb-4 text-gray-200" x-text="confirmModal.title"></h2>
+            <p class="mb-6 text-gray-300" x-text="confirmModal.message"></p>
+            <div class="flex justify-end space-x-4">
+                <button type="button" @click="showConfirmModal = false" class="btn bg-gray-600 hover:bg-gray-500 text-gray-200 font-bold py-2 px-6 rounded-lg">Cancel</button>
+                <button type="button" @click="executeConfirm()" class="btn bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-6 rounded-lg">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="showNotificationModal" class="modal-backdrop" x-cloak>
+        <div class="modal-content max-w-md bg-gray-800" @click.away="showNotificationModal = false">
+            <h2 class="text-2xl font-bold mb-4 text-gray-200">Notification</h2>
+            <p class="mb-6 text-gray-300" x-text="notificationMessage"></p>
+            <div class="flex justify-end">
+                <button type="button" @click="showNotificationModal = false" class="btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-6 rounded-lg">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script>
+        function loanApp() {
+            return {
+                // Auth & Data State
+                isLoggedIn: false,
+                authScreen: 'login', // 'login' or 'register'
+                loginCredentials: { username: '', pin: '' },
+                registerCredentials: { username: '', pin: '', confirmPin: '' },
+                authError: '',
+                dataFile: null,
+                rememberMe: true,
+                dataDirty: false,
+                syncStatus: 'file_synced', // 'file_synced', 'local_synced', 'dirty', 'syncing'
+                autoSyncInterval: null,
+                
+                // App State
+                activeTab: 'dashboard',
+                clients: [],
+                loans: [],
+                currency: 'PHP',
+                newClient: {},
+                currentTime: '',
+                loanModal: { show: false, mode: 'create', data: {}, summary: {}, schedulePreview: [] },
+                portfolioInsights: {},
+                showAddClientModal: false,
+                showConfirmModal: false,
+                confirmModal: { title: '', message: '', onConfirm: null },
+                showNotificationModal: false,
+                notificationMessage: '',
+                showClientDetailsModal: false,
+                selectedClient: null,
+                isEditingClient: false,
+                originalClientState: null,
+                showLoanDetailsModal: false,
+                selectedLoan: null,
+                clientSearchQuery: '',
+                clientSortDirection: 'asc',
+                loanSearchQuery: '',
+                loanSortKey: 'due_asc',
+                selectedClientIdFilter: null,
+                showListModal: false,
+                listModal: { title: '', items: [] },
+                showCreditScoreModal: false,
+                creditScores: [],
+                creditScoreSearchQuery: '',
+                selectedCreditScoreClient: null,
+                isCurrencyDropdownOpen: false,
+                currencies: [
+                    { code: 'PHP', country: 'ph' },
+                    { code: 'USD', country: 'us' },
+                    { code: 'EUR', country: 'eu' },
+                    { code: 'JPY', country: 'jp' },
+                    { code: 'GBP', country: 'gb' },
+                    { code: 'AUD', country: 'au' },
+                    { code: 'CAD', country: 'ca' },
+                    { code: 'CHF', country: 'ch' },
+                    { code: 'CNY', country: 'cn' },
+                    { code: 'INR', country: 'in' },
+                    { code: 'BRL', country: 'br' },
+                    { code: 'KRW', country: 'kr' },
+                    { code: 'SGD', country: 'sg' },
+                    { code: 'MXN', country: 'mx' },
+                    { code: 'ZAR', country: 'za' }
+                ],
+                
+                // --- INITIALIZATION & AUTH ---
+                init() {
+                    this.isLoggedIn = false; // Always start logged out
+                    const savedUsername = localStorage.getItem('bud_username');
+                    const savedPin = localStorage.getItem('bud_pin');
+                    const rememberPref = localStorage.getItem('bud_remember_me');
+                    this.rememberMe = rememberPref !== 'false';
+
+                    if (this.rememberMe) {
+                        if(savedUsername) this.loginCredentials.username = savedUsername;
+                        if(savedPin) this.loginCredentials.pin = savedPin;
+                    }
+
+                    const localBackup = localStorage.getItem('bud_local_backup');
+                    if (localBackup && this.loginCredentials.pin) {
+                        console.log("Local backup found. Attempting to restore session...");
+                        try {
+                            const bytes = CryptoJS.AES.decrypt(localBackup, this.loginCredentials.pin);
+                            const decryptedText = bytes.toString(CryptoJS.enc.Utf8);
+                            
+                            if (!decryptedText) {
+                                throw new Error("Decryption of local backup failed.");
+                            }
+                            
+                            const data = JSON.parse(decryptedText);
+                            
+                            if (data.auth.username === this.loginCredentials.username) {
+                                this._loadData(data);
+                                this._initializeApp();
+                                this.syncStatus = 'local_synced';
+                                console.log("Session restored successfully from local backup.");
+                            } else {
+                                 throw new Error("Username mismatch in local backup.");
+                            }
+                        } catch (error) {
+                            console.error("Failed to restore from local backup:", error);
+                            localStorage.removeItem('bud_local_backup');
+                            localStorage.removeItem('bud_pin');
+                            this.loginCredentials.pin = '';
+                        }
+                    }
+
+                    this.$watch('rememberMe', value => {
+                        localStorage.setItem('bud_remember_me', value);
+                        if (!value) {
+                            localStorage.removeItem('bud_username');
+                            localStorage.removeItem('bud_pin');
+                        }
+                    });
+                },
+
+                handleFileUpload(event) {
+                    this.dataFile = event.target.files[0];
+                    this.authError = '';
+                },
+
+                login() {
+                    this.authError = '';
+                    if (!this.dataFile) {
+                        this.authError = 'Please select your data file.';
+                        return;
+                    }
+                    if (!this.loginCredentials.username || !this.loginCredentials.pin) {
+                        this.authError = 'Please enter your username and PIN.';
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const encryptedData = e.target.result;
+                            const bytes = CryptoJS.AES.decrypt(encryptedData, this.loginCredentials.pin);
+                            const decryptedText = bytes.toString(CryptoJS.enc.Utf8);
+                            
+                            if (!decryptedText) {
+                                throw new Error("Decryption failed. Invalid PIN or corrupt file.");
+                            }
+                            
+                            const data = JSON.parse(decryptedText);
+
+                            if (data.auth.username !== this.loginCredentials.username) {
+                                throw new Error("Username does not match the one in the data file.");
+                            }
+                            
+                            this._loadData(data);
+
+                            if (this.rememberMe) {
+                                localStorage.setItem('bud_username', this.loginCredentials.username);
+                                localStorage.setItem('bud_pin', this.loginCredentials.pin);
+                            } else {
+                                localStorage.removeItem('bud_username');
+                                localStorage.removeItem('bud_pin');
+                            }
+                            
+                            this._initializeApp();
+
+                        } catch (error) {
+                            console.error("Login error:", error);
+                            this.authError = `Login failed. ${error.message}`;
+                        }
+                    };
+                    reader.onerror = () => {
+                        this.authError = 'Failed to read the data file.';
+                    };
+                    reader.readAsText(this.dataFile);
+                },
+
+                register() {
+                    this.authError = '';
+                    const { username, pin, confirmPin } = this.registerCredentials;
+                    if (!username || !pin || !confirmPin) {
+                        this.authError = 'Please fill out all fields.';
+                        return;
+                    }
+                    if (pin.length !== 6 || !/^\d+$/.test(pin)) {
+                        this.authError = 'Your PIN must be exactly 6 digits.';
+                        return;
+                    }
+                    if (pin !== confirmPin) {
+                        this.authError = 'PINs do not match.';
+                        return;
+                    }
+
+                    const initialData = {
+                        auth: { username: username },
+                        appData: {
+                            clients: [],
+                            loans: [],
+                            currency: 'PHP',
+                        }
+                    };
+                    
+                    this.loginCredentials.username = username; // Set for filename generation
+                    this.downloadEncryptedFile(initialData, pin, `Bud_${username}.bfb`);
+                    this.showNotification(`Account created successfully! Your data file "Bud_${username}.bfb" has been downloaded. Please use it to log in.`);
+                    this.registerCredentials = { username: '', pin: '', confirmPin: '' };
+                    this.authScreen = 'login';
+                },
+
+                logout() {
+                    this.openConfirmModal(
+                        'Sync & Logout',
+                        'This will download a final backup file of your current data before logging out. Are you sure you want to continue?',
+                        () => {
+                            this.downloadEncryptedFile(null, null, null, () => this._performLogout());
+                        }
+                    );
+                },
+                
+                _performLogout() {
+                    clearInterval(this.autoSyncInterval);
+                    localStorage.removeItem('bud_local_backup');
+                    const usernameToKeep = this.rememberMe ? this.loginCredentials.username : '';
+                    const pinToKeep = this.rememberMe ? this.loginCredentials.pin : '';
+
+                    // Reset state
+                    Object.assign(this, {
+                        isLoggedIn: false,
+                        clients: [],
+                        loans: [],
+                        dataFile: null,
+                        dataDirty: false,
+                        autoSyncInterval: null,
+                        loginCredentials: { username: usernameToKeep, pin: pinToKeep },
+                        syncStatus: 'file_synced',
+                    });
+                    
+                    document.getElementById('data-file').value = '';
+                },
+
+                _loadData(data) {
+                    this.clients = data.appData.clients || [];
+                    this.loans = data.appData.loans || [];
+                    this.currency = data.appData.currency || 'PHP';
+                },
+
+                _initializeApp() {
+                    this.isLoggedIn = true;
+                    this.syncStatus = 'file_synced';
+                    this.dataDirty = false;
+                    this.recalculateDashboardMetrics();
+                    this.updateTime();
+                    setInterval(() => this.updateTime(), 1000);
+                    // Start auto-sync interval
+                    this.autoSyncInterval = setInterval(() => {
+                        if (this.dataDirty) {
+                            console.log('Auto-syncing data locally...');
+                            this.autoSyncLocally();
+                        }
+                    }, 5000); // 5 seconds
+                },
+
+                // --- DATA PERSISTENCE ---
+                queueSave() {
+                    this.dataDirty = true;
+                    this.syncStatus = 'dirty';
+                },
+
+                autoSyncLocally(onCompleteCallback = null) {
+                    this.syncStatus = 'syncing';
+                    setTimeout(() => {
+                        const currentPin = this.loginCredentials.pin;
+                        if (!currentPin) {
+                            console.error("Local sync failed: PIN is not available.");
+                            this.syncStatus = 'dirty';
+                            return;
+                        }
+                        const dataToSave = {
+                            auth: { username: this.loginCredentials.username },
+                            appData: {
+                                clients: this.clients,
+                                loans: this.loans,
+                                currency: this.currency
+                            }
+                        };
+                        try {
+                            const encrypted = CryptoJS.AES.encrypt(JSON.stringify(dataToSave), currentPin).toString();
+                            localStorage.setItem('bud_local_backup', encrypted);
+                            this.dataDirty = false;
+                            this.syncStatus = 'local_synced';
+                             if (typeof onCompleteCallback === 'function') {
+                                onCompleteCallback();
+                            }
+                        } catch (e) {
+                            console.error("Encryption failed during local sync:", e);
+                            this.syncStatus = 'dirty';
+                        }
+                    }, 50);
+                },
+
+                manualSync() {
+                    this.openConfirmModal(
+                        'Sync & Download Data',
+                        'This will download a new encrypted backup file of your current data. This downloaded file will be your new master file for future logins. It will also clear the temporary local backup. Do you want to continue?',
+                        () => this.downloadEncryptedFile()
+                    );
+                },
+
+                downloadEncryptedFile(dataObj = null, pin = null, filename = null, onCompleteCallback = null) {
+                    this.syncStatus = 'syncing';
+                    
+                    setTimeout(() => {
+                        const currentPin = pin || this.loginCredentials.pin;
+                        const currentUsername = this.loginCredentials.username || (dataObj && dataObj.auth.username);
+
+                        if (!currentPin) {
+                            console.error("Cannot save data: PIN is not available.");
+                            this.showNotification("Error: Cannot save data. PIN is missing. Please log out and log back in.");
+                            this.syncStatus = 'dirty';
+                            return;
+                        }
+
+                        const dataToSave = dataObj || {
+                            auth: { username: currentUsername },
+                            appData: {
+                                clients: this.clients,
+                                loans: this.loans,
+                                currency: this.currency
+                            }
+                        };
+
+                        try {
+                            const encrypted = CryptoJS.AES.encrypt(JSON.stringify(dataToSave), currentPin).toString();
+                            const blob = new Blob([encrypted], { type: 'application/octet-stream' });
+                            
+                            const url = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = url;
+                            link.download = filename || `Bud_${currentUsername}.bfb`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(url);
+                            
+                            localStorage.removeItem('bud_local_backup');
+                            this.dataDirty = false;
+                            this.syncStatus = 'file_synced';
+                             if (!dataObj) { // Don't show this notification on initial registration
+                                this.showNotification("Data synced via Encrypted Data File successfully.");
+                            }
+                            
+                            if (typeof onCompleteCallback === 'function') {
+                                onCompleteCallback();
+                            }
+
+                        } catch (e) {
+                            console.error("Encryption failed during file sync:", e);
+                            this.showNotification("Critical Error: Failed to encrypt and sync data file.");
+                            this.syncStatus = 'dirty';
+                        }
+                    }, 50);
+                },
+                
+                resetNewClientForm() {
+                    this.newClient = { photoUrl: '', firstName: '', lastName: '', email: '', phone: '', address: '' };
+                },
+
+                getBlankLoanForm() {
+                    return { 
+                        clientId: '', 
+                        amount: null, 
+                        disbursementDate: new Date().toISOString().split('T')[0],
+                        repaymentStartDate: new Date().toISOString().split('T')[0],
+                        durationValue: null,
+                        durationUnit: 'Months',
+                        repaymentPlan: 'Monthly',
+                        customRepaymentValue: null,
+                        customRepaymentUnit: 'Days',
+                        interestType: '',
+                        interestValue: null,
+                        customPeriodValue: null,
+                        customPeriodUnit: 'Days',
+                        ignoreIncompletePeriod: false,
+                        applyLimits: false,
+                        maxChargesPerMonth: null,
+                        maxInterestPerMonth: null,
+                    };
+                },
+
+                // --- COMPUTED PROPERTIES & HELPERS ---
+                getSelectedCurrency() {
+                    return this.currencies.find(c => c.code === this.currency) || this.currencies[0];
+                },
+                get filteredClients() {
+                    let results = this.clients;
+                    if (this.clientSearchQuery) {
+                        const query = this.clientSearchQuery.toLowerCase();
+                        results = this.clients.filter(client => 
+                            `${client.firstName} ${client.lastName}`.toLowerCase().includes(query)
+                        );
+                    }
+                    
+                    return results.sort((a, b) => {
+                        const nameA = `${a.firstName} ${a.lastName}`.toLowerCase();
+                        const nameB = `${b.firstName} ${b.lastName}`.toLowerCase();
+                        if (nameA < nameB) return this.clientSortDirection === 'asc' ? -1 : 1;
+                        if (nameA > nameB) return this.clientSortDirection === 'asc' ? 1 : -1;
+                        return 0;
+                    });
+                },
+
+                get filteredCreditScores() {
+                    if (!this.creditScoreSearchQuery) {
+                        return this.creditScores;
+                    }
+                    const query = this.creditScoreSearchQuery.toLowerCase();
+                    return this.creditScores.filter(score =>
+                        score.clientName.toLowerCase().includes(query)
+                    );
+                },
+
+                get filteredAndSortedLoans() {
+                    let filtered = this.loans;
+                    if (this.selectedClientIdFilter !== null) {
+                        filtered = filtered.filter(loan => loan.clientId == this.selectedClientIdFilter);
+                    }
+                    if (this.loanSearchQuery) {
+                        const query = this.loanSearchQuery.toLowerCase();
+                        filtered = filtered.filter(loan => 
+                            this.getClientName(loan.clientId).toLowerCase().includes(query)
+                        );
+                    }
+                    filtered.sort((a, b) => {
+                        const dateA = new Date(a.finalDueDate);
+                        const dateB = new Date(b.finalDueDate);
+                        return this.loanSortKey === 'due_asc' ? dateA - dateB : dateB - dateA;
+                    });
+                    return filtered;
+                },
+
+                get totalCapitalInvested() {
+                    return this.loans.reduce((sum, loan) => sum + loan.amount, 0);
+                },
+                get interestIncomeEarned() {
+                    let earned = 0;
+                    this.loans.forEach(loan => {
+                        const totalDueForLoan = this.calculateTotalDue(loan);
+                        if (totalDueForLoan > 0) {
+                            const totalInterestForLoan = this.calculateInterest(loan);
+                            const interestRatio = totalInterestForLoan / totalDueForLoan;
+                            const amountPaidOnLoan = this.calculateAmountPaid(loan);
+                            earned += amountPaidOnLoan * interestRatio;
+                        }
+                    });
+                    return earned;
+                },
+                get roi() {
+                    const cost = this.totalCapitalInvested;
+                    if (cost === 0) return '0.00';
+                    const profit = this.interestIncomeEarned;
+                    const roiValue = (profit / cost) * 100;
+                    return roiValue.toFixed(2);
+                },
+
+                get duesOverdue() {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const items = [];
+                    this.loans.forEach(loan => {
+                        if (!loan.paymentSchedule) return;
+                        loan.paymentSchedule.forEach(inst => {
+                            const dueDate = new Date(inst.dueDate + 'T00:00:00');
+                            if (inst.status !== 'paid' && dueDate < today) {
+                                items.push({
+                                    loanId: loan.id,
+                                    clientName: this.getClientName(loan.clientId),
+                                    dueDate: inst.dueDate,
+                                    amountDue: inst.amountDue,
+                                    totalLoanAmount: this.calculateTotalDue(loan),
+                                    totalPaid: this.calculateAmountPaid(loan),
+                                    remainingBalance: this.calculateBalance(loan),
+                                    daysOverdue: this.calculateDaysOverdue(inst.dueDate)
+                                });
+                            }
+                        });
+                    });
+                    const totalAmount = items.reduce((sum, item) => sum + item.amountDue, 0);
+                    return { count: items.length, amount: totalAmount, items: items.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)) };
+                },
+
+                get duesToday() {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const tomorrow = new Date(today);
+                    tomorrow.setDate(tomorrow.getDate() + 1);
+                    const items = [];
+                    this.loans.forEach(loan => {
+                        if (!loan.paymentSchedule) return;
+                        loan.paymentSchedule.forEach(inst => {
+                            if (inst.status !== 'paid') {
+                                const dueDate = new Date(inst.dueDate + 'T00:00:00');
+                                if (dueDate >= today && dueDate < tomorrow) {
+                                    items.push({
+                                        loanId: loan.id,
+                                        clientName: this.getClientName(loan.clientId),
+                                        dueDate: inst.dueDate,
+                                        amountDue: inst.amountDue,
+                                        totalLoanAmount: this.calculateTotalDue(loan),
+                                        totalPaid: this.calculateAmountPaid(loan),
+                                        remainingBalance: this.calculateBalance(loan),
+                                        daysOverdue: 0
+                                    });
+                                }
+                            }
+                        });
+                    });
+                    const totalAmount = items.reduce((sum, item) => sum + item.amountDue, 0);
+                    return { count: items.length, amount: totalAmount, items: items.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)) };
+                },
+                get duesThisWeek() {
+                    const today = new Date();
+                    const startOfWeek = new Date(today.setDate(today.getDate() - today.getDay()));
+                    startOfWeek.setHours(0, 0, 0, 0);
+                    const endOfWeek = new Date(startOfWeek);
+                    endOfWeek.setDate(endOfWeek.getDate() + 7);
+                    const items = [];
+                    this.loans.forEach(loan => {
+                        if (!loan.paymentSchedule) return;
+                        loan.paymentSchedule.forEach(inst => {
+                            if (inst.status !== 'paid') {
+                                const dueDate = new Date(inst.dueDate + 'T00:00:00');
+                                if (dueDate >= startOfWeek && dueDate < endOfWeek) {
+                                    items.push({
+                                        loanId: loan.id,
+                                        clientName: this.getClientName(loan.clientId),
+                                        dueDate: inst.dueDate,
+                                        amountDue: inst.amountDue,
+                                        totalLoanAmount: this.calculateTotalDue(loan),
+                                        totalPaid: this.calculateAmountPaid(loan),
+                                        remainingBalance: this.calculateBalance(loan),
+                                        daysOverdue: this.calculateDaysOverdue(inst.dueDate)
+                                    });
+                                }
+                            }
+                        });
+                    });
+                    const totalAmount = items.reduce((sum, item) => sum + item.amountDue, 0);
+                    return { count: items.length, amount: totalAmount, items: items.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)) };
+                },
+                get duesThisMonth() {
+                    const today = new Date();
+                    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                    endOfMonth.setHours(23, 59, 59, 999);
+                    const items = [];
+                    this.loans.forEach(loan => {
+                        if (!loan.paymentSchedule) return;
+                        loan.paymentSchedule.forEach(inst => {
+                            if (inst.status !== 'paid') {
+                                const dueDate = new Date(inst.dueDate + 'T00:00:00');
+                                if (dueDate >= startOfMonth && dueDate <= endOfMonth) {
+                                    items.push({
+                                        loanId: loan.id,
+                                        clientName: this.getClientName(loan.clientId),
+                                        dueDate: inst.dueDate,
+                                        amountDue: inst.amountDue,
+                                        totalLoanAmount: this.calculateTotalDue(loan),
+                                        totalPaid: this.calculateAmountPaid(loan),
+                                        remainingBalance: this.calculateBalance(loan),
+                                        daysOverdue: this.calculateDaysOverdue(inst.dueDate)
+                                    });
+                                }
+                            }
+                        });
+                    });
+                    const totalAmount = items.reduce((sum, item) => sum + item.amountDue, 0);
+                    return { count: items.length, amount: totalAmount, items: items.sort((a,b) => new Date(a.dueDate) - new Date(b.dueDate)) };
+                },
+                
+                updateTime() {
+                    this.currentTime = new Date().toLocaleString('en-US', {
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+                },
+
+                recalculateDashboardMetrics() {
+                    // This function is intensive, so ensure it's only called when needed
+                    if (!this.isLoggedIn) return;
+
+                    const clientsWithLoans = [...new Set(this.loans.map(l => l.clientId))];
+                    const clientLoanCounts = this.loans.reduce((acc, loan) => {
+                        acc[loan.clientId] = (acc[loan.clientId] || 0) + 1;
+                        return acc;
+                    }, {});
+                    const repeatBorrowers = Object.values(clientLoanCounts).filter(count => count > 1).length;
+                    const repeatBorrowerRate = clientsWithLoans.length > 0 ? (repeatBorrowers / clientsWithLoans.length) * 100 : 0;
+                    const averageLoanSize = this.loans.length > 0 ? this.totalCapitalInvested / this.loans.length : 0;
+                    
+                    const borrowerBalances = clientsWithLoans.map(clientId => {
+                        const clientLoans = this.loans.filter(l => l.clientId === clientId);
+                        const totalBalance = clientLoans.reduce((sum, loan) => sum + this.calculateBalance(loan), 0);
+                        return { clientId, totalBalance };
+                    });
+                    borrowerBalances.sort((a, b) => b.totalBalance - a.totalBalance);
+                    const top3Balance = borrowerBalances.slice(0, 3).reduce((sum, b) => sum + b.totalBalance, 0);
+                    const totalOutstanding = this.loans.reduce((sum, loan) => sum + this.calculateBalance(loan), 0);
+                    const borrowerConcentration = totalOutstanding > 0 ? (top3Balance / totalOutstanding) * 100 : 0;
+                    
+                    const totalRepayments = this.loans.flatMap(l => l.payments || []).reduce((sum, p) => sum + p.amount, 0);
+                    const loanTurnoverRatio = totalOutstanding > 0 ? (totalRepayments / totalOutstanding) : 0;
+                    
+                    const totalDurationDays = this.loans.reduce((sum, loan) => {
+                        const start = new Date(loan.disbursementDate);
+                        const end = new Date(loan.finalDueDate);
+                        const duration = (end - start) / (1000 * 60 * 60 * 24);
+                        return sum + (duration > 0 ? duration : 0);
+                    }, 0);
+                    const averageLoanDuration = this.loans.length > 0 ? totalDurationDays / this.loans.length : 0;
+                    
+                    const thirtyDaysAgo = new Date();
+                    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                    let atRiskAmount = 0;
+                    const loansAtRisk = new Set();
+                    this.loans.forEach(loan => {
+                        if (this.calculateBalance(loan) > 0 && loan.paymentSchedule) {
+                            const isAtRisk = loan.paymentSchedule.some(inst => {
+                                const dueDate = new Date(inst.dueDate + 'T00:00:00');
+                                return inst.status !== 'paid' && dueDate < thirtyDaysAgo;
+                            });
+                            if (isAtRisk) {
+                                loansAtRisk.add(loan.id);
+                            }
+                        }
+                    });
+                    atRiskAmount = [...loansAtRisk].reduce((sum, loanId) => sum + this.calculateBalance(this.getLoanById(loanId)), 0);
+                    const portfolioAtRisk = totalOutstanding > 0 ? (atRiskAmount / totalOutstanding) * 100 : 0;
+
+                    this.portfolioInsights = {
+                        repeatBorrowerRate: repeatBorrowerRate.toFixed(2),
+                        averageLoanSize: averageLoanSize,
+                        borrowerConcentration: borrowerConcentration.toFixed(2),
+                        loanTurnoverRatio: loanTurnoverRatio.toFixed(2),
+                        averageLoanDuration: Math.round(averageLoanDuration),
+                        portfolioAtRisk: portfolioAtRisk.toFixed(2),
+                    };
+                },
+
+                handlePhotoUpload(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            this.newClient.photoUrl = e.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                },
+
+                // --- Client Methods ---
+                toggleClientSort() { this.clientSortDirection = this.clientSortDirection === 'asc' ? 'desc' : 'asc'; },
+                addClient() {
+                    if (!this.newClient.firstName || !this.newClient.lastName) return;
+                    this.clients.push({ id: Date.now(), ...this.newClient });
+                    this.queueSave();
+                    this.resetNewClientForm();
+                    this.showAddClientModal = false;
+                    this.recalculateDashboardMetrics();
+                },
+                getClientById(clientId) {
+                    return this.clients.find(c => c.id == clientId);
+                },
+                getClientName(clientId) {
+                    const client = this.getClientById(clientId);
+                    return client ? `${client.firstName} ${client.lastName}` : 'Unknown Client';
+                },
+                handleEditPhotoUpload(event) {
+                    const file = event.target.files[0];
+                    if (file && this.selectedClient) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            this.selectedClient.photoUrl = e.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                },
+                openClientDetailsModal(clientId) {
+                    const client = this.getClientById(clientId);
+                    if(client) {
+                        this.originalClientState = JSON.parse(JSON.stringify(client)); 
+                        this.selectedClient = JSON.parse(JSON.stringify(client)); 
+                        this.isEditingClient = false;
+                        this.showClientDetailsModal = true;
+                    }
+                },
+                updateClient() {
+                    if (!this.selectedClient) return;
+                    const index = this.clients.findIndex(c => c.id === this.selectedClient.id);
+                    if (index !== -1) {
+                        this.clients[index] = this.selectedClient;
+                        this.queueSave();
+                    }
+                    this.showClientDetailsModal = false;
+                    this.selectedClient = null;
+                    this.originalClientState = null;
+                    this.recalculateDashboardMetrics();
+                },
+                cancelClientEdit() {
+                    this.selectedClient = JSON.parse(JSON.stringify(this.originalClientState));
+                    this.isEditingClient = false;
+                },
+                confirmDeleteClient(clientId) {
+                    this.openConfirmModal(
+                        'Delete Client?',
+                        'Are you sure you want to delete this client? This will also delete all their loans.',
+                        () => {
+                            this.clients = this.clients.filter(c => c.id !== clientId);
+                            this.loans = this.loans.filter(l => l.clientId !== clientId);
+                            this.queueSave();
+                            this.showClientDetailsModal = false;
+                            this.recalculateDashboardMetrics();
+                        }
+                    );
+                },
+                filterLoansByClient(clientId) {
+                    if (this.selectedClientIdFilter === clientId) {
+                        this.selectedClientIdFilter = null;
+                    } else {
+                        this.selectedClientIdFilter = clientId;
+                    }
+                },
+                clearClientFilter() {
+                    this.selectedClientIdFilter = null;
+                },
+
+                // --- Loan Modal Methods ---
+                openLoanModalForCreate() {
+                    if (this.clients.length === 0) {
+                        this.showNotification('Please add a client first before creating a loan.');
+                        return;
+                    }
+                    this.loanModal.mode = 'create';
+                    this.loanModal.data = this.getBlankLoanForm();
+                    this.updateLoanModalSummary();
+                    this.loanModal.show = true;
+                },
+                openLoanModalForEdit(loanId) {
+                    const loan = this.getLoanById(loanId);
+                    if (loan) {
+                        this.loanModal.mode = 'edit';
+                        this.loanModal.data = JSON.parse(JSON.stringify(loan));
+                        this.showLoanDetailsModal = false;
+                        this.updateLoanModalSummary();
+                        this.loanModal.show = true;
+                    }
+                },
+                isLoanFormValid() {
+                    const ln = this.loanModal.data;
+                    if (!ln.clientId || !ln.amount || !ln.disbursementDate || !ln.durationValue || !ln.interestType || !ln.repaymentStartDate) {
+                        return false;
+                    }
+                    if (ln.interestValue === null || ln.interestValue === '') {
+                        return false;
+                    }
+                    if (ln.interestType === 'Custom Fixed Interest' && (ln.customPeriodValue === null || ln.customPeriodValue === '')) {
+                        return false;
+                    }
+                    if (ln.repaymentPlan === 'Custom' && (ln.customRepaymentValue === null || ln.customRepaymentValue === '')) {
+                        return false;
+                    }
+                    return true;
+                },
+                getInterestValueLabel() {
+                    switch (this.loanModal.data.interestType) {
+                        case 'Add-On Rate': return 'Monthly Add-On Rate (%)';
+                        case 'Factor Rate': return 'Monthly Factor Rate';
+                        case 'Effective Rate': return 'Annual Effective Rate (%)';
+                        case 'Daily Fixed Interest':
+                        case 'Weekly Fixed Interest':
+                        case 'Monthly Fixed Interest':
+                        case 'Total Fixed Interest': return 'Fixed Interest Amount';
+                        default: return 'Interest Value';
+                    }
+                },
+                getRepaymentPlanText(loan) {
+                    if (!loan) return '';
+                    const plan = loan.repaymentPlan;
+                    if (plan === 'Custom') {
+                        if (loan.customRepaymentValue) {
+                            return `Every ${loan.customRepaymentValue} ${loan.customRepaymentUnit}`;
+                        }
+                        return 'Custom';
+                    }
+                    return plan || '...';
+                },
+                updateLoanModalSummary() {
+                    this.loanModal.schedulePreview = [];
+                    const getRepaymentPlanTextForModal = () => {
+                        const plan = this.loanModal.data.repaymentPlan;
+                        if (plan === 'Custom') {
+                            if (this.loanModal.data.customRepaymentValue) {
+                                return `Every ${this.loanModal.data.customRepaymentValue} ${this.loanModal.data.customRepaymentUnit}`;
+                            }
+                            return 'Custom';
+                        }
+                        return plan || '...';
+                    };
+
+                    if (!this.isLoanFormValid()) {
+                        this.loanModal.summary = {
+                            clientName: this.loanModal.data.clientId ? this.getClientName(this.loanModal.data.clientId) : '...',
+                            principal: this.loanModal.data.amount ? this.formatCurrency(this.loanModal.data.amount) : this.formatCurrency(0),
+                            term: '...',
+                            finalDueDate: '...',
+                            repaymentStartDate: '...',
+                            repaymentPlan: getRepaymentPlanTextForModal(),
+                            interestType: this.loanModal.data.interestType || '...',
+                            interest: this.formatCurrency(0),
+                            totalDue: this.formatCurrency(this.loanModal.data.amount || 0)
+                        };
+                        return;
+                    }
+
+                    const tempLoanData = { ...this.loanModal.data };
+                    const startDate = new Date(tempLoanData.disbursementDate + 'T00:00:00');
+                    if (tempLoanData.durationUnit === 'Months') {
+                        startDate.setMonth(startDate.getMonth() + tempLoanData.durationValue);
+                    } else {
+                        startDate.setDate(startDate.getDate() + tempLoanData.durationValue);
+                    }
+                    tempLoanData.finalDueDate = startDate.toISOString().split('T')[0];
+
+                    const interest = this.calculateInterest(tempLoanData);
+                    const totalDue = (tempLoanData.amount || 0) + interest;
+                    
+                    this.loanModal.summary = {
+                        clientName: this.getClientName(tempLoanData.clientId),
+                        principal: this.formatCurrency(tempLoanData.amount),
+                        term: `${tempLoanData.durationValue} ${tempLoanData.durationUnit}`,
+                        finalDueDate: new Date(tempLoanData.finalDueDate).toLocaleDateString(),
+                        repaymentStartDate: new Date(tempLoanData.repaymentStartDate).toLocaleDateString(),
+                        repaymentPlan: getRepaymentPlanTextForModal(),
+                        interestType: tempLoanData.interestType,
+                        interest: this.formatCurrency(interest),
+                        totalDue: this.formatCurrency(totalDue),
+                    };
+
+                    this.loanModal.schedulePreview = this.generatePaymentSchedule(tempLoanData, totalDue);
+                },
+                saveLoan() {
+                    if (!this.isLoanFormValid()) {
+                        this.showNotification('Please fill out all required loan fields.');
+                        return;
+                    }
+                    const loanData = { ...this.loanModal.data };
+                    
+                    const startDate = new Date(loanData.disbursementDate + 'T00:00:00');
+                    if (loanData.durationUnit === 'Months') {
+                        startDate.setMonth(startDate.getMonth() + loanData.durationValue);
+                    } else { 
+                        startDate.setDate(startDate.getDate() + loanData.durationValue);
+                    }
+                    loanData.finalDueDate = startDate.toISOString().split('T')[0];
+                    const totalDue = loanData.amount + this.calculateInterest(loanData);
+                    loanData.paymentSchedule = this.generatePaymentSchedule(loanData, totalDue);
+
+                    if (this.loanModal.mode === 'create') {
+                        this.loans.push({ 
+                            id: Date.now(), 
+                            ...loanData, 
+                            payments: [] 
+                        });
+                    } else { // 'edit' mode
+                        const index = this.loans.findIndex(l => l.id === loanData.id);
+                        if (index !== -1) {
+                            loanData.payments = this.loans[index].payments; // Preserve existing payments
+                            this.loans[index] = loanData;
+                        }
+                    }
+
+                    this.queueSave();
+                    this.loanModal.show = false;
+                    this.recalculateDashboardMetrics();
+                },
+                generatePaymentSchedule(loanDetails, totalDue) {
+                    const schedule = [];
+                    const repaymentStartDate = new Date(loanDetails.repaymentStartDate + 'T00:00:00');
+                    const finalDueDate = new Date(loanDetails.finalDueDate + 'T00:00:00');
+                    let currentDueDate = new Date(repaymentStartDate);
+
+                    let numInstallments = 0;
+                    
+                    if (loanDetails.repaymentPlan === 'Daily') {
+                        numInstallments = Math.round((finalDueDate - repaymentStartDate) / (1000 * 60 * 60 * 24)) + 1;
+                    } else if (loanDetails.repaymentPlan === 'Weekly') {
+                        numInstallments = Math.ceil(((finalDueDate - repaymentStartDate) / (1000 * 60 * 60 * 24)) / 7);
+                    } else if (loanDetails.repaymentPlan === 'Monthly') {
+                        numInstallments = (finalDueDate.getFullYear() - repaymentStartDate.getFullYear()) * 12 + (finalDueDate.getMonth() - repaymentStartDate.getMonth());
+                         if(finalDueDate.getDate() >= repaymentStartDate.getDate()) numInstallments++;
+                         if(numInstallments <= 0) numInstallments = 1;
+                    } else if (loanDetails.repaymentPlan === 'Yearly') {
+                        numInstallments = finalDueDate.getFullYear() - repaymentStartDate.getFullYear() + 1;
+                    } else if (loanDetails.repaymentPlan === 'Custom') {
+                        let customDays = 0;
+                        if(loanDetails.customRepaymentUnit === 'Days') customDays = loanDetails.customRepaymentValue;
+                        if(loanDetails.customRepaymentUnit === 'Months') customDays = loanDetails.customRepaymentValue * 30.4375;
+                        if(loanDetails.customRepaymentUnit === 'Years') customDays = loanDetails.customRepaymentValue * 365.25;
+                        if(customDays > 0) numInstallments = Math.ceil(((finalDueDate - repaymentStartDate) / (1000 * 60 * 60 * 24)) / customDays);
+                    }
+
+                    if (numInstallments <= 0) numInstallments = 1;
+
+                    const installmentAmount = totalDue / numInstallments;
+
+                    for (let i = 0; i < numInstallments; i++) {
+                        if (i > 0) {
+                             if (loanDetails.repaymentPlan === 'Daily') {
+                                currentDueDate.setDate(currentDueDate.getDate() + 1);
+                            } else if (loanDetails.repaymentPlan === 'Weekly') {
+                                currentDueDate.setDate(currentDueDate.getDate() + 7);
+                            } else if (loanDetails.repaymentPlan === 'Monthly') {
+                                currentDueDate.setMonth(currentDueDate.getMonth() + 1);
+                            } else if (loanDetails.repaymentPlan === 'Yearly') {
+                                currentDueDate.setFullYear(currentDueDate.getFullYear() + 1);
+                            } else if (loanDetails.repaymentPlan === 'Custom') {
+                                if(loanDetails.customRepaymentUnit === 'Days') currentDueDate.setDate(currentDueDate.getDate() + loanDetails.customRepaymentValue);
+                                if(loanDetails.customRepaymentUnit === 'Months') currentDueDate.setMonth(currentDueDate.getMonth() + loanDetails.customRepaymentValue);
+                                if(loanDetails.customRepaymentUnit === 'Years') currentDueDate.setFullYear(currentDueDate.getFullYear() + loanDetails.customRepaymentValue);
+                            }
+                        }
+
+                        if(currentDueDate > finalDueDate && i < numInstallments - 1) break;
+
+                        schedule.push({
+                            id: Date.now() + i,
+                            dueDate: (i === numInstallments - 1 ? finalDueDate : currentDueDate).toISOString().split('T')[0],
+                            amountDue: installmentAmount,
+                            status: 'pending'
+                        });
+                    }
+
+                    return schedule;
+                },
+                getLoanById(loanId) {
+                    return this.loans.find(l => l.id === loanId);
+                },
+                openLoanDetailsModal(loanId) {
+                    const loanIndex = this.loans.findIndex(l => l.id === loanId);
+                    if (loanIndex === -1) return;
+
+                    let loan = this.loans[loanIndex];
+
+                    if (!loan.paymentSchedule || loan.paymentSchedule.length === 0) {
+                        const totalDue = this.calculateTotalDue(loan);
+                        loan.paymentSchedule = this.generatePaymentSchedule(loan, totalDue);
+                        this.queueSave();
+                    }
+
+                    this.selectedLoan = {
+                        ...loan,
+                        clientName: this.getClientName(loan.clientId),
+                        totalInterest: this.calculateInterest(loan),
+                        amountPaid: this.calculateAmountPaid(loan),
+                        balance: this.calculateBalance(loan),
+                    };
+                    this.showLoanDetailsModal = true;
+                },
+                confirmDeleteLoan(loanId) {
+                    this.openConfirmModal(
+                        'Delete Loan?',
+                        'Are you sure you want to delete this loan?',
+                        () => {
+                            this.loans = this.loans.filter(l => l.id !== loanId);
+                            this.queueSave();
+                            this.showLoanDetailsModal = false;
+                            this.recalculateDashboardMetrics();
+                        }
+                    );
+                },
+                
+                // --- Interest Calculation Engine ---
+                calculateInterest(loan) {
+                    const principal = loan.amount;
+                    if (!loan.disbursementDate || !loan.finalDueDate) return 0;
+                    const disbursementDate = new Date(loan.disbursementDate);
+                    const finalDueDate = new Date(loan.finalDueDate);
+                    const durationInDays = Math.max(0, (finalDueDate - disbursementDate) / (1000 * 60 * 60 * 24));
+                    const durationInMonths = durationInDays / 30.4375;
+                    let totalInterest = 0;
+
+                    switch (loan.interestType) {
+                        case 'Add-On Rate':
+                            totalInterest = principal * (loan.interestValue / 100) * durationInMonths;
+                            break;
+                        case 'Factor Rate':
+                            const monthlyPaymentFactor = principal * loan.interestValue;
+                            const totalRepaymentFactor = monthlyPaymentFactor * durationInMonths;
+                            totalInterest = totalRepaymentFactor - principal;
+                            break;
+                        case 'Effective Rate':
+                            const annualRate = loan.interestValue / 100;
+                            const monthlyRate = annualRate / 12;
+                            const numberOfMonths = loan.durationUnit === 'Months' ? loan.durationValue : durationInMonths;
+                            if (monthlyRate > 0) {
+                                const monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, numberOfMonths)) / (Math.pow(1 + monthlyRate, numberOfMonths) - 1);
+                                const totalRepayment = monthlyPayment * numberOfMonths;
+                                totalInterest = totalRepayment - principal;
+                            } else {
+                                totalInterest = 0;
+                            }
+                            break;
+                        case 'Daily Fixed Interest':
+                            totalInterest = loan.interestValue * durationInDays;
+                            break;
+                        case 'Weekly Fixed Interest':
+                            totalInterest = loan.interestValue * (durationInDays / 7);
+                            break;
+                        case 'Monthly Fixed Interest':
+                            totalInterest = loan.interestValue * durationInMonths;
+                            break;
+                        case 'Total Fixed Interest':
+                            totalInterest = loan.interestValue;
+                            break;
+                        case 'Custom Fixed Interest':
+                            let customPeriodDays = 0;
+                            if (loan.customPeriodUnit === 'Days') customPeriodDays = loan.customPeriodValue;
+                            else if (loan.customPeriodUnit === 'Weeks') customPeriodDays = loan.customPeriodValue * 7;
+                            else if (loan.customPeriodUnit === 'Months') customPeriodDays = loan.customPeriodValue * 30.4375;
+
+                            if (customPeriodDays > 0) {
+                                let numberOfPeriods = durationInDays / customPeriodDays;
+                                if (loan.ignoreIncompletePeriod) {
+                                    numberOfPeriods = Math.floor(numberOfPeriods);
+                                }
+                                totalInterest = loan.interestValue * numberOfPeriods;
+
+                                if (loan.applyLimits) {
+                                    let monthlyInterestCap = Infinity;
+                                    if(loan.maxChargesPerMonth) {
+                                        monthlyInterestCap = Math.min(monthlyInterestCap, loan.maxChargesPerMonth * loan.interestValue);
+                                    }
+                                    if(loan.maxInterestPerMonth) {
+                                        monthlyInterestCap = Math.min(monthlyInterestCap, loan.maxInterestPerMonth);
+                                    }
+                                    if(monthlyInterestCap !== Infinity) {
+                                        const maxTotalInterest = monthlyInterestCap * durationInMonths;
+                                        totalInterest = Math.min(totalInterest, maxTotalInterest);
+                                    }
+                                }
+                            }
+                            break;
+                    }
+                    return totalInterest > 0 ? totalInterest : 0;
+                },
+
+                calculateTotalDue(loan) {
+                    return loan.amount + this.calculateInterest(loan);
+                },
+                calculateAmountPaid(loan) {
+                    if (!loan.payments) return 0;
+                    return loan.payments.reduce((sum, p) => sum + p.amount, 0);
+                },
+                calculateBalance(loan) {
+                    const balance = this.calculateTotalDue(loan) - this.calculateAmountPaid(loan);
+                    return parseFloat(balance.toFixed(2));
+                },
+                getLoanRowClass(loan) {
+                    const balance = this.calculateBalance(loan);
+                    if (balance <= 0) {
+                        return '!bg-green-500/10';
+                    }
+                    const today = new Date();
+                    today.setHours(0,0,0,0);
+                    const dueDate = new Date(loan.finalDueDate);
+                    if (dueDate < today) {
+                        return '!bg-red-500/10';
+                    }
+                    return '';
+                },
+                
+                // --- Payment and Installment Methods ---
+                getInstallmentStatus(installment) {
+                    if (installment.status === 'paid') {
+                        return 'Paid';
+                    }
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    if (new Date(installment.dueDate) < today) {
+                        return 'Overdue';
+                    }
+                    return 'Pending';
+                },
+                markInstallmentAsPaid(loanId, installmentIndex) {
+                    const loan = this.getLoanById(loanId);
+                    if (loan) {
+                        const installment = loan.paymentSchedule[installmentIndex];
+                        if (installment.status !== 'paid') {
+                            installment.status = 'paid';
+                            if(!loan.payments) loan.payments = [];
+                            loan.payments.push({
+                                installmentId: installment.id,
+                                amount: installment.amountDue,
+                                date: new Date().toISOString()
+                            });
+                            this.queueSave();
+                            this.openLoanDetailsModal(loanId); // Refresh modal data
+                        }
+                    }
+                },
+                markInstallmentAsUnpaid(loanId, installmentIndex) {
+                     const loan = this.getLoanById(loanId);
+                    if (loan) {
+                        const installment = loan.paymentSchedule[installmentIndex];
+                        if (installment.status === 'paid') {
+                            installment.status = 'pending';
+                            const paymentIndex = loan.payments.findIndex(p => p.installmentId === installment.id);
+                            if (paymentIndex > -1) {
+                                loan.payments.splice(paymentIndex, 1);
+                            }
+                            this.queueSave();
+                            this.openLoanDetailsModal(loanId); // Refresh modal data
+                        }
+                    }
+                },
+
+                // --- List Modal Methods ---
+                openListModal(type) {
+                    switch (type) {
+                        case 'overdue':
+                            this.listModal.title = 'Overdue Payments';
+                            this.listModal.items = this.duesOverdue.items;
+                            break;
+                        case 'today':
+                            this.listModal.title = 'Payments Due Today';
+                            this.listModal.items = this.duesToday.items;
+                            break;
+                        case 'week':
+                            this.listModal.title = 'Payments Due This Week';
+                            this.listModal.items = this.duesThisWeek.items;
+                            break;
+                        case 'month':
+                            this.listModal.title = 'Payments Due This Month';
+                            this.listModal.items = this.duesThisMonth.items;
+                            break;
+                    }
+                    this.showListModal = true;
+                },
+
+                calculateDaysOverdue(dueDateStr) {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const dueDate = new Date(dueDateStr + 'T00:00:00');
+                    if (dueDate >= today) {
+                        return 0;
+                    }
+                    return Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+                },
+
+                exportListToCSV() {
+                    const title = this.listModal.title.replace(/ /g, '_');
+                    const filename = `${title}_${new Date().toISOString().split('T')[0]}.csv`;
+                    const headers = ['Client Name', 'Total Loan', 'Total Paid', 'Balance', 'Installment Due', 'Installment Due Date', 'Days Overdue'];
+                    const rows = this.listModal.items.map(item => [
+                        `"${item.clientName}"`,
+                        item.totalLoanAmount.toFixed(2),
+                        item.totalPaid.toFixed(2),
+                        item.remainingBalance.toFixed(2),
+                        item.amountDue.toFixed(2),
+                        new Date(item.dueDate).toLocaleDateString(),
+                        item.daysOverdue
+                    ]);
+                    
+                    let csvContent = "data:text/csv;charset=utf-8,";
+                    csvContent += headers.join(",") + "\r\n";
+                    
+                    rows.forEach(rowArray => {
+                        let row = rowArray.join(",");
+                        csvContent += row + "\r\n";
+                    });
+                    
+                    var encodedUri = encodeURI(csvContent);
+                    var link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", filename);
+                    document.body.appendChild(link);
+                    
+                    link.click();
+                    document.body.removeChild(link);
+                },
+                
+                // --- Credit Score Methods ---
+                openCreditScoreModal() {
+                    this.creditScoreSearchQuery = '';
+                    this.selectedCreditScoreClient = null;
+                    const scores = this.clients.map(client => {
+                        return this.calculateCreditScore(client.id);
+                    }).filter(Boolean);
+                    
+                    scores.sort((a, b) => b.score - a.score);
+
+                    this.creditScores = scores;
+                    this.showCreditScoreModal = true;
+                },
+
+                getScoreRating(score) {
+                    if (score >= 80) return 'Excellent';
+                    if (score >= 70) return 'Good';
+                    if (score >= 60) return 'Fair';
+                    if (score >= 50) return 'Poor';
+                    return 'Risky';
+                },
+
+                calculateCreditScore(clientId) {
+                    const client = this.getClientById(clientId);
+                    if (!client) return null;
+
+                    const clientLoans = this.loans.filter(l => l.clientId === clientId);
+
+                    let breakdown = {
+                        baseScore: { value: 50, text: "All clients start with a base score." },
+                        paymentPerformance: { value: 0, text: "No payment history." },
+                        loanCompletion: { value: 0, text: "No completed loans." },
+                        overduePenalty: { value: 0, text: "No overdue payments." },
+                        latenessSeverity: { value: 0, text: "No severely late payments." },
+                        debtFreeBonus: { value: 0, text: "Client has active loans." },
+                    };
+
+                    if (clientLoans.length === 0) {
+                        breakdown.baseScore = { value: 60, text: "Base score for new clients."};
+                        breakdown.loanCompletion.text = 'No loan history.';
+                        let score = breakdown.baseScore.value;
+                        return {
+                            clientId: clientId,
+                            clientName: this.getClientName(clientId),
+                            photoUrl: client.photoUrl,
+                            score: score,
+                            rating: this.getScoreRating(score),
+                            remarks: 'No loan history.',
+                            breakdown
+                        };
+                    }
+
+                    let totalInstallments = 0;
+                    let paidOnTimeInstallments = 0;
+                    let overdueInstallments = 0;
+                    let totalDaysOverdue = 0;
+                    let completedLoans = 0;
+                    let hasActiveLoan = false;
+
+                    clientLoans.forEach(loan => {
+                        if (this.calculateBalance(loan) <= 0) completedLoans++;
+                        else hasActiveLoan = true;
+
+                        if (loan.paymentSchedule) {
+                            loan.paymentSchedule.forEach(inst => {
+                                const instStatus = this.getInstallmentStatus(inst);
+                                if (instStatus !== 'Pending') {
+                                    totalInstallments++;
+                                    if (instStatus === 'Paid') paidOnTimeInstallments++;
+                                    else if (instStatus === 'Overdue') {
+                                        overdueInstallments++;
+                                        totalDaysOverdue += this.calculateDaysOverdue(inst.dueDate);
+                                    }
+                                }
+                            });
+                        }
+                    });
+
+                    if (totalInstallments > 0) {
+                        const paymentRatio = paidOnTimeInstallments / totalInstallments;
+                        breakdown.paymentPerformance.value = paymentRatio * 35;
+                        breakdown.paymentPerformance.text = `Paid ${paidOnTimeInstallments}/${totalInstallments} installments on time.`;
+                    }
+
+                    const completionRatio = completedLoans / clientLoans.length;
+                    breakdown.loanCompletion.value = completionRatio * 15;
+                    breakdown.loanCompletion.text = `Completed ${completedLoans}/${clientLoans.length} loans.`;
+
+                    const overduePenaltyPoints = overdueInstallments * 5;
+                    breakdown.overduePenalty.value = -overduePenaltyPoints;
+                    if(overdueInstallments > 0) breakdown.overduePenalty.text = `${overdueInstallments} payments were missed.`;
+
+                    if (overdueInstallments > 0) {
+                        const avgDaysOverdue = totalDaysOverdue / overdueInstallments;
+                        if (avgDaysOverdue > 30) {
+                            breakdown.latenessSeverity.value = -10;
+                            breakdown.latenessSeverity.text = `Payments are overdue by ${avgDaysOverdue.toFixed(0)} days on average.`;
+                        }
+                    }
+
+                    if (!hasActiveLoan && clientLoans.length > 0) {
+                        breakdown.debtFreeBonus.value = 5;
+                        breakdown.debtFreeBonus.text = `All loans are fully paid.`
+                    }
+                    
+                    let score = Object.values(breakdown).reduce((acc, item) => acc + item.value, 0);
+                    score = Math.max(0, Math.min(100, score));
+                    
+                    let remarks = [];
+                    if (breakdown.paymentPerformance.value > 25) remarks.push("Excellent payment history.");
+                    if (breakdown.loanCompletion.value > 10) remarks.push("Reliable in completing loans.");
+                    if (breakdown.overduePenalty.value < -10) remarks.push("History of multiple missed payments.");
+                    if (breakdown.latenessSeverity.value < 0) remarks.push("Payments are often severely late.");
+                    if (remarks.length === 0) remarks.push("Average payment behavior.");
+
+                    return {
+                        clientId: clientId,
+                        clientName: this.getClientName(clientId),
+                        photoUrl: client.photoUrl,
+                        score: score,
+                        rating: this.getScoreRating(score),
+                        remarks: remarks.join(' '),
+                        breakdown
+                    };
+                },
+
+                // --- Export & Utility ---
+                masterExport() {
+                    const filename = `Master_Export_${new Date().toISOString().split('T')[0]}.csv`;
+                    const headers = [
+                        'ClientID', 'ClientFirstName', 'ClientLastName', 'ClientEmail', 'ClientPhone', 'ClientAddress',
+                        'LoanID', 'PrincipalAmount', 'DisbursementDate', 'FinalDueDate', 'TotalInterest',
+                        'TotalDue', 'AmountPaid', 'Balance', 'LoanStatus'
+                    ];
+
+                    let rows = [];
+                    this.loans.forEach(loan => {
+                        const client = this.getClientById(loan.clientId);
+                        const totalDue = this.calculateTotalDue(loan);
+                        const amountPaid = this.calculateAmountPaid(loan);
+                        const balance = totalDue - amountPaid;
+                        let status = 'Active';
+                        if (balance <= 0) {
+                            status = 'Paid';
+                        } else if (new Date(loan.finalDueDate) < new Date()) {
+                            status = 'Overdue';
+                        }
+
+                        rows.push([
+                            client ? client.id : 'N/A',
+                            client ? `"${client.firstName}"` : 'N/A',
+                            client ? `"${client.lastName}"` : 'N/A',
+                            client ? `"${client.email || ''}"` : 'N/A',
+                            client ? `"${client.phone || ''}"` : 'N/A',
+                            client ? `"${(client.address || '').replace(/"/g, '""')}"` : 'N/A',
+                            loan.id,
+                            loan.amount.toFixed(2),
+                            loan.disbursementDate,
+                            loan.finalDueDate,
+                            this.calculateInterest(loan).toFixed(2),
+                            totalDue.toFixed(2),
+                            amountPaid.toFixed(2),
+                            balance.toFixed(2),
+                            status
+                        ]);
+                    });
+                    
+                    if (rows.length === 0) {
+                        this.showNotification('No data to export.');
+                        return;
+                    }
+
+                    let csvContent = "data:text/csv;charset=utf-8,";
+                    csvContent += headers.join(",") + "\r\n";
+                    rows.forEach(rowArray => {
+                        let row = rowArray.join(",");
+                        csvContent += row + "\r\n";
+                    });
+
+                    var encodedUri = encodeURI(csvContent);
+                    var link = document.createElement("a");
+                    link.setAttribute("href", encodedUri);
+                    link.setAttribute("download", filename);
+                    document.body.appendChild(link);
+                    
+                    link.click();
+                    document.body.removeChild(link);
+                },
+
+                formatCurrency(amount) {
+                    if (typeof amount !== 'number') {
+                        amount = 0;
+                    }
+                    return new Intl.NumberFormat('en-US', { style: 'currency', currency: this.currency }).format(amount);
+                },
+                openConfirmModal(title, message, onConfirmCallback) {
+                    this.confirmModal.title = title;
+                    this.confirmModal.message = message;
+                    this.confirmModal.onConfirm = onConfirmCallback;
+                    this.showConfirmModal = true;
+                },
+                executeConfirm() {
+                    if (typeof this.confirmModal.onConfirm === 'function') {
+                        this.confirmModal.onConfirm();
+                    }
+                    this.showConfirmModal = false;
+                },
+                showNotification(message) {
+                    this.notificationMessage = message;
+                    this.showNotificationModal = true;
+                }
+            }
+        }
+    </script>
+
+</body>
+</html>
+
