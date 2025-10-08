@@ -98,58 +98,110 @@
 <body class="bg-gray-900">
 
     <div x-show="!isLoggedIn" x-cloak class="flex items-center justify-center min-h-screen text-gray-200 p-4">
-        <div class="w-full max-w-md p-8 space-y-6 bg-gray-800 rounded-xl shadow-lg">
-            <div class="flex flex-col items-center space-y-4">
-                <div class="h-24 w-24 flex items-center justify-center rounded-full bg-white p-2">
-                    <img src="dp.png" alt="Logo" class="h-full w-full rounded-full">
+        <div class="w-full bg-gray-800 rounded-xl shadow-lg flex transition-all duration-500 ease-in-out" :class="{ 'max-w-4xl': authScreen === 'login', 'max-w-md': authScreen === 'register' }">
+            
+            <div x-show="authScreen === 'login'" class="w-1/2 p-8 border-r border-gray-700/50 hidden md:block"
+                 x-transition:enter="transition ease-out duration-500"
+                 x-transition:enter-start="opacity-0 transform -translate-x-4"
+                 x-transition:enter-end="opacity-100 transform translate-x-0">
+                <h2 class="text-2xl font-bold text-white mb-4">Your Business, Your Data.</h2>
+                <p class="text-gray-400 mb-6">Bud For Biz is a completely offline, secure loan management tool. Here's what you can do:</p>
+
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="font-semibold text-lg text-blue-400 mb-2">What Can You Do?</h3>
+                        <ul class="space-y-2 text-sm text-gray-300">
+                            <li class="flex items-start">
+                                <i class="fas fa-check-circle text-green-400 mr-3 mt-1"></i>
+                                <span><strong class="text-gray-200">Manage Clients:</strong> Add, edit, and track all your borrower information in one place.</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-check-circle text-green-400 mr-3 mt-1"></i>
+                                <span><strong class="text-gray-200">Create Complex Loans:</strong> Use multiple interest types, custom repayment schedules, and more.</span>
+                            </li>
+                             <li class="flex items-start">
+                                <i class="fas fa-check-circle text-green-400 mr-3 mt-1"></i>
+                                <span><strong class="text-gray-200">Track Payments:</strong> Monitor due dates, view overdue accounts, and record payments with a single click.</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-check-circle text-green-400 mr-3 mt-1"></i>
+                                <span><strong class="text-gray-200">Gain Insights:</strong> Analyze your portfolio with a powerful dashboard and client credit scoring.</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-lg text-purple-400 mb-2">Why Bud For Biz?</h3>
+                         <ul class="space-y-2 text-sm text-gray-300">
+                            <li class="flex items-start">
+                                <i class="fas fa-shield-alt text-green-400 mr-3 mt-1"></i>
+                                <span><strong class="text-gray-200">Completely Offline & Secure:</strong> Your data is AES-encrypted and saved only on your device. No cloud, no servers, no internet required.</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fas fa-file-invoice-dollar text-green-400 mr-3 mt-1"></i>
+                                <span><strong class="text-gray-200">No Subscriptions:</strong> A one-time setup for a powerful, lifelong tool. Your business data is never held for ransom.</span>
+                            </li>
+                             <li class="flex items-start">
+                                <i class="fas fa-user-lock text-green-400 mr-3 mt-1"></i>
+                                <span><strong class="text-gray-200">Full Data Ownership:</strong> You hold the keys. Export your data to CSV anytime for backup or external analysis.</span>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
-                <h1 class="text-3xl font-bold text-center">Bud For Biz</h1>
-                <p class="text-sm text-gray-400 text-center">Your Personal Lending Manager</p>
             </div>
 
-            <div class="flex border-b border-gray-700">
-                <button @click="authScreen = 'login'; authError = ''" :class="{ 'border-blue-500 text-white': authScreen === 'login', 'border-transparent text-gray-400 hover:text-white': authScreen !== 'login' }" class="w-1/2 py-3 text-center font-medium border-b-2 transition-colors">Login</button>
-                <button @click="authScreen = 'register'; authError = ''" :class="{ 'border-blue-500 text-white': authScreen === 'register', 'border-transparent text-gray-400 hover:text-white': authScreen !== 'register' }" class="w-1/2 py-3 text-center font-medium border-b-2 transition-colors">Register</button>
+            <div class="w-full p-8 space-y-6" :class="{ 'md:w-1/2': authScreen === 'login', 'w-full': authScreen === 'register' }">
+                <div class="flex flex-col items-center space-y-4">
+                    <div class="h-24 w-24 flex items-center justify-center rounded-full bg-white p-2">
+                        <img src="dp.png" alt="Logo" class="h-full w-full rounded-full">
+                    </div>
+                    <h1 class="text-3xl font-bold text-center">Bud For Biz</h1>
+                    <p class="text-sm text-gray-400 text-center">Your Personal Lending Manager</p>
+                </div>
+
+                <div class="flex border-b border-gray-700">
+                    <button @click="authScreen = 'login'; authError = ''" :class="{ 'border-blue-500 text-white': authScreen === 'login', 'border-transparent text-gray-400 hover:text-white': authScreen !== 'login' }" class="w-1/2 py-3 text-center font-medium border-b-2 transition-colors">Login</button>
+                    <button @click="authScreen = 'register'; authError = ''" :class="{ 'border-blue-500 text-white': authScreen === 'register', 'border-transparent text-gray-400 hover:text-white': authScreen !== 'register' }" class="w-1/2 py-3 text-center font-medium border-b-2 transition-colors">Register</button>
+                </div>
+
+                <div x-show="authError" class="bg-red-500/20 border border-red-500 text-red-300 text-sm rounded-lg p-3 text-center" x-text="authError"></div>
+
+                <form x-show="authScreen === 'login'" @submit.prevent="login()" class="space-y-4">
+                    <div>
+                        <label for="data-file" class="block text-sm font-medium text-gray-400">Data File</label>
+                        <input id="data-file" type="file" @change="handleFileUpload($event)" accept=".bfb" class="mt-1 block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:text-white" :class="{ 'file:bg-red-500 hover:file:bg-red-600': !dataFile, 'file:bg-gray-700 hover:file:bg-gray-800': dataFile }" required>
+                    </div>
+                    <div>
+                        <label for="login-username" class="block text-sm font-medium text-gray-400">Username</label>
+                        <input id="login-username" type="text" x-model="loginCredentials.username" placeholder="Enter your username" class="mt-1 p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400" required>
+                    </div>
+                    <div>
+                        <label for="login-pin" class="block text-sm font-medium text-gray-400">6-Digit PIN</label>
+                        <input id="login-pin" type="password" x-model="loginCredentials.pin" placeholder="••••••" maxlength="6" class="mt-1 p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400" required>
+                    </div>
+                    <div class="flex items-center">
+                        <input id="remember-me" x-model="rememberMe" type="checkbox" class="h-4 w-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500">
+                        <label for="remember-me" class="ml-2 block text-sm text-gray-400">Remember me</label>
+                    </div>
+                    <button type="submit" class="w-full btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg">Unlock & Load Data</button>
+                </form>
+
+                <form x-show="authScreen === 'register'" @submit.prevent="register()" class="space-y-4">
+                     <div>
+                        <label for="reg-username" class="block text-sm font-medium text-gray-400">Username</label>
+                        <input id="reg-username" type="text" x-model="registerCredentials.username" placeholder="Choose a username" class="mt-1 p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400" required>
+                    </div>
+                    <div>
+                        <label for="reg-pin" class="block text-sm font-medium text-gray-400">Create 6-Digit PIN</label>
+                        <input id="reg-pin" type="password" x-model="registerCredentials.pin" placeholder="Enter 6 digits" maxlength="6" class="mt-1 p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400" required>
+                    </div>
+                     <div>
+                        <label for="reg-pin-confirm" class="block text-sm font-medium text-gray-400">Confirm 6-Digit PIN</label>
+                        <input id="reg-pin-confirm" type="password" x-model="registerCredentials.confirmPin" placeholder="Confirm your PIN" maxlength="6" class="mt-1 p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400" required>
+                    </div>
+                    <button type="submit" class="w-full btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg">Create Account & Download File</button>
+                    <p class="text-xs text-gray-500 text-center">After registering, you will be prompted to save your encrypted data file. Keep this file safe as it's required to log in.</p>
+                </form>
             </div>
-
-            <div x-show="authError" class="bg-red-500/20 border border-red-500 text-red-300 text-sm rounded-lg p-3 text-center" x-text="authError"></div>
-
-            <form x-show="authScreen === 'login'" @submit.prevent="login()" class="space-y-4">
-                <div>
-                    <label for="data-file" class="block text-sm font-medium text-gray-400">Data File</label>
-                    <input id="data-file" type="file" @change="handleFileUpload($event)" accept=".bfb" class="mt-1 block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:text-white" :class="{ 'file:bg-red-500 hover:file:bg-red-600': !dataFile, 'file:bg-gray-700 hover:file:bg-gray-800': dataFile }" required>
-                </div>
-                <div>
-                    <label for="login-username" class="block text-sm font-medium text-gray-400">Username</label>
-                    <input id="login-username" type="text" x-model="loginCredentials.username" placeholder="Enter your username" class="mt-1 p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400" required>
-                </div>
-                <div>
-                    <label for="login-pin" class="block text-sm font-medium text-gray-400">6-Digit PIN</label>
-                    <input id="login-pin" type="password" x-model="loginCredentials.pin" placeholder="••••••" maxlength="6" class="mt-1 p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400" required>
-                </div>
-                <div class="flex items-center">
-                    <input id="remember-me" x-model="rememberMe" type="checkbox" class="h-4 w-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-blue-500">
-                    <label for="remember-me" class="ml-2 block text-sm text-gray-400">Remember me</label>
-                </div>
-                <button type="submit" class="w-full btn bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg">Unlock & Load Data</button>
-            </form>
-
-            <form x-show="authScreen === 'register'" @submit.prevent="register()" class="space-y-4">
-                 <div>
-                    <label for="reg-username" class="block text-sm font-medium text-gray-400">Username</label>
-                    <input id="reg-username" type="text" x-model="registerCredentials.username" placeholder="Choose a username" class="mt-1 p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400" required>
-                </div>
-                <div>
-                    <label for="reg-pin" class="block text-sm font-medium text-gray-400">Create 6-Digit PIN</label>
-                    <input id="reg-pin" type="password" x-model="registerCredentials.pin" placeholder="Enter 6 digits" maxlength="6" class="mt-1 p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400" required>
-                </div>
-                 <div>
-                    <label for="reg-pin-confirm" class="block text-sm font-medium text-gray-400">Confirm 6-Digit PIN</label>
-                    <input id="reg-pin-confirm" type="password" x-model="registerCredentials.confirmPin" placeholder="Confirm your PIN" maxlength="6" class="mt-1 p-3 border rounded-lg w-full bg-gray-700 border-gray-600 text-gray-200 placeholder-gray-400" required>
-                </div>
-                <button type="submit" class="w-full btn bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg">Create Account & Download File</button>
-                <p class="text-xs text-gray-500 text-center">After registering, you will be prompted to save your encrypted data file. Keep this file safe as it's required to log in.</p>
-            </form>
         </div>
     </div>
     
